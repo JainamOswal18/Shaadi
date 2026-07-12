@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Clapperboard,
   Film,
   ListChecks,
   LogOut,
@@ -17,6 +18,7 @@ import type { AdminSettings } from "@/lib/types";
 import { Brand } from "@/components/Brand";
 import { AdminTable } from "@/components/AdminTable";
 import { SearchesTable } from "@/components/SearchesTable";
+import { ReelsTable } from "@/components/ReelsTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,16 +39,18 @@ import {
   deleteMedia,
   fetchLogs,
   fetchMedia,
+  fetchReels,
   fetchSearches,
   fetchSettings,
   updateSettings,
   type LogsResponse,
   type MediaItem,
+  type ReelItem,
   type SearchLogItem,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type Tab = "logs" | "media" | "searches" | "settings";
+type Tab = "logs" | "media" | "searches" | "reels" | "settings";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -59,6 +63,7 @@ export default function AdminDashboard() {
   const [searches, setSearches] = useState<SearchLogItem[]>([]);
   const [searchesHasMore, setSearchesHasMore] = useState(false);
   const [searchesLoading, setSearchesLoading] = useState(false);
+  const [reels, setReels] = useState<ReelItem[]>([]);
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const guard = useCallback(
@@ -75,17 +80,19 @@ export default function AdminDashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const [s, l, m, sr] = await Promise.all([
+        const [s, l, m, sr, rl] = await Promise.all([
           fetchSettings(),
           fetchLogs(1),
           fetchMedia(),
           fetchSearches(),
+          fetchReels(),
         ]);
         setSettings(s);
         setLogs(l);
         setMedia(m.media);
         setSearches(sr.searches);
         setSearchesHasMore(sr.hasMore);
+        setReels(rl.reels);
         setReady(true);
       } catch (err) {
         if (!guard(err)) toast.error("Couldn't load the console");
@@ -155,6 +162,7 @@ export default function AdminDashboard() {
     { id: "logs", label: "Activity", icon: ScrollText },
     { id: "media", label: "Media", icon: Film },
     { id: "searches", label: "Who searched", icon: UserSearch },
+    { id: "reels", label: "Reels", icon: Clapperboard },
     { id: "settings", label: "Settings", icon: SlidersHorizontal },
   ];
 
@@ -302,6 +310,8 @@ export default function AdminDashboard() {
             onLoadMore={loadMoreSearches}
           />
         )}
+
+        {tab === "reels" && <ReelsTable reels={reels} />}
 
         {tab === "settings" && settings && (
           <div className="flex flex-col gap-4">
