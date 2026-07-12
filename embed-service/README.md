@@ -196,3 +196,65 @@ gallery) means the embed service is live and wired up correctly. If you
 still see `502 {"error":"embed_unavailable"}`, double-check `EMBED_FN_URL`/
 `EMBED_API_KEY` were set on the `production` environment and that you
 redeployed after adding them (step 6).
+
+## 8. `POST /reel` — reel maker render endpoint
+
+The same container also renders the Jeena "Reel maker" slideshow (spec §3.G):
+an ffmpeg job that composites a guest's selected photos into an MP4, muxes a
+trimmed bundled song, and uploads the result to the private R2 originals
+bucket. **`ffmpeg` is now a required runtime dependency** — installed via
+`apt-get` in the `Dockerfile` runtime stage — and `boto3` is in
+`requirements.txt` to talk to R2.
+
+```
+POST /reel
+  headers: Authorization: Bearer <EMBED_API_KEY>  (required only if EMBED_API_KEY is set)
+  body: ReelDispatchPayload JSON (see src/lib/reel-client.ts), e.g.
+    { "jobId": "<uuid>", "aspect": "4:5", "width": 1080, "height": 1350,
+      "totalSeconds": 20, "transition": "kenburns",
+      "frames": [{ "url": "<preview url>", "seconds": 5 }, ...],
+      "audio": { "url": "<mp3 url>"|null, "startSec": 0 },
+      "outputKey": "reels/<jobId>.mp4",
+      "callbackUrl": "https://<app>/api/reel/callback" }
+  202 -> {"accepted": true, "jobId": "<uuid>"}   (render runs in a background task)
+  400 -> {"error": "..."}                        on missing jobId/frames or bad JSON
+  401 -> {"error": "unauthorized"}                on missing/wrong bearer (only when EMBED_API_KEY is set)
+```
+
+The render itself never blocks the request: `/reel` returns `202` immediately
+and does the ffmpeg work + R2 upload in a FastAPI `BackgroundTasks` job. When
+it finishes (success or failure) it `POST`s the payload's `callbackUrl` with
+the same bearer token and `{jobId, status:"done", outputKey}` or
+`{jobId, status:"error", error}` — this is what flips the Next.js app's
+`reel_jobs` row from `rendering` to `done`/`error`.
+
+**New environment variables** (in addition to the existing `EMBED_API_KEY`,
+`MODEL_BASE_URL`, `INSIGHTFACE_HOME`), all required for `/reel` to be able to
+upload the rendered MP4:
+
+| Var | Purpose |
+|---|---|
+| `R2_ENDPOINT` | Cloudflare R2 S3-compatible endpoint URL |
+| `R2_ACCESS_KEY_ID` | R2 access key with write access to the originals bucket |
+| `R2_SECRET_ACCESS_KEY` | R2 secret key |
+| `R2_BUCKET_ORIGINALS` | Private originals bucket name (reels are written under `reels/<jobId>.mp4`); defaults to `shaadi-photos` |
+
+Add them at `docker run` time alongside the existing env, e.g.:
+
+```bash
+docker run -d --restart=always -p 8000:8000 \
+  -e EMBED_API_KEY="$EMBED_API_KEY" \
+  -e R2_ENDPOINT="https://<account>.r2.cloudflarestorage.com" \
+  -e R2_ACCESS_KEY_ID="..." \
+  -e R2_SECRET_ACCESS_KEY="..." \
+  -e R2_BUCKET_ORIGINALS="shaadi-photos" \
+  --name shaadi-embed \
+  shaadi-embed
+```
+
+After rebuilding the image (`docker build -t shaadi-embed embed-service/`),
+recreate the container (`docker rm -f shaadi-embed` then re-run) so the new
+`ffmpeg` binary and env vars take effect; the persistent InsightFace model
+volume/layer is unaffected, so there's no model re-download. No new Caddy
+route is needed — `/reel` is served by the same FastAPI app behind the
+existing reverse proxy.

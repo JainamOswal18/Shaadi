@@ -19,6 +19,17 @@ const Schema = z.object({
   // against an unauthenticated embed service; required in practice once the
   // embed service is reachable from the public internet (EC2).
   EMBED_API_KEY: z.string().optional(),
+  // The reel-render endpoint on the same EC2 embed-service box. Optional so
+  // local dev / tests can run without it configured; defaults to the local
+  // dev URL in reel-client.ts when unset.
+  REEL_FN_URL: z.string().url().optional(),
+  // Canonical public origin of this app (e.g. "https://shaadi.example.com"),
+  // set explicitly in prod so the reel render callback/audio URLs sent to the
+  // EC2 box are never derived from a caller-controlled Host/X-Forwarded-Host
+  // header (which could otherwise be spoofed into an SSRF against an
+  // attacker-chosen origin). Optional so local dev/tests fall back to the
+  // request-derived origin.
+  APP_ORIGIN: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof Schema>;

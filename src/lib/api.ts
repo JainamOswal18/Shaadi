@@ -1,11 +1,14 @@
 import type {
   ConfigResponse,
+  CreateReelResponse,
+  ReelStatusResponse,
   SearchResponse,
   SessionResponse,
   UploadUrlRequest,
   UploadUrlResponse,
   AdminSettings,
 } from "@/lib/types";
+import type { ReelSpec } from "@/lib/reel";
 
 async function asJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -267,4 +270,32 @@ export async function deleteMedia(photoId: string): Promise<void> {
       body: JSON.stringify({ photoId }),
     }),
   );
+}
+
+// ---- Reel Maker ----
+export async function createReel(spec: ReelSpec): Promise<CreateReelResponse> {
+  return asJson<CreateReelResponse>(
+    await fetch("/api/reel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(spec),
+    }),
+  );
+}
+
+export async function pollReel(jobId: string): Promise<ReelStatusResponse> {
+  return asJson<ReelStatusResponse>(
+    await fetch(`/api/reel?jobId=${encodeURIComponent(jobId)}`),
+  );
+}
+
+export type ReelItem = {
+  id: string;
+  guest: string | null;
+  url: string; // signed playback URL
+  createdAt: string;
+};
+
+export async function fetchReels(): Promise<{ reels: ReelItem[] }> {
+  return asJson<{ reels: ReelItem[] }>(await fetch("/api/admin/reels"));
 }

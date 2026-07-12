@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Download, ImageOff, LayoutGrid, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Download, Film, ImageOff, LayoutGrid, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import type { SearchResponse } from "@/lib/types";
 import { Brand } from "@/components/Brand";
@@ -11,9 +11,11 @@ import { Garland } from "@/components/Garland";
 import { PhotoGrid } from "@/components/PhotoGrid";
 import { Lightbox } from "@/components/Lightbox";
 import { CollageMaker } from "@/components/CollageMaker";
+import { ReelMaker } from "@/components/ReelMaker";
 import { AccountMenu } from "@/components/AccountMenu";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MAX_PHOTOS } from "@/lib/reel";
 import {
   ApiError,
   downloadZipUrl,
@@ -50,11 +52,15 @@ function ResultsInner() {
   // Big albums exceed the single-ZIP cap; this opens the "download in parts" sheet.
   const [partsOpen, setPartsOpen] = useState(false);
   const [recents, setRecents] = useState<RememberedGuest[]>([]);
-  // Collage flow: `selecting` turns the grid into a multi-select; `collageOpen`
-  // launches the editor over the chosen photos.
+  // Collage/reel flow: `selecting` turns the grid into a multi-select shared
+  // by both editors; `launchMode` remembers which one to open once the guest
+  // taps "Continue", and `collageOpen`/`reelOpen` launch the chosen editor
+  // over the selected photos.
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [launchMode, setLaunchMode] = useState<"collage" | "reel">("collage");
   const [collageOpen, setCollageOpen] = useState(false);
+  const [reelOpen, setReelOpen] = useState(false);
 
   const toggleSelected = (photoId: string) =>
     setSelected((prev) => {
@@ -64,8 +70,9 @@ function ResultsInner() {
       return next;
     });
 
-  function startSelecting() {
+  function startSelecting(mode: "collage" | "reel") {
     setSelected(new Set());
+    setLaunchMode(mode);
     setSelecting(true);
   }
   function cancelSelecting() {
@@ -239,9 +246,19 @@ function ResultsInner() {
             size="touch"
             className="flex-1"
             data-testid="make-collage"
-            onClick={startSelecting}
+            onClick={() => startSelecting("collage")}
           >
             <LayoutGrid /> Make a collage
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="touch"
+            className="flex-1"
+            data-testid="make-reel"
+            onClick={() => startSelecting("reel")}
+          >
+            <Film /> Make a reel
           </Button>
           <Link
             href="/upload"
@@ -303,14 +320,20 @@ function ResultsInner() {
                 variant="marigold"
                 size="xl"
                 data-testid="collage-continue"
-                onClick={() => setCollageOpen(true)}
-                disabled={selected.size < 1}
+                onClick={() => (launchMode === "reel" ? setReelOpen(true) : setCollageOpen(true))}
+                disabled={
+                  selected.size < 1 || (launchMode === "reel" && selected.size > MAX_PHOTOS)
+                }
                 className="flex-1"
               >
-                <LayoutGrid />
+                {launchMode === "reel" ? <Film /> : <LayoutGrid />}
                 {selected.size < 1
                   ? "Select photos to continue"
-                  : `Make collage (${selected.size})`}
+                  : launchMode === "reel" && selected.size > MAX_PHOTOS
+                    ? `Up to ${MAX_PHOTOS} photos for a reel`
+                    : launchMode === "reel"
+                      ? `Make reel (${selected.size})`
+                      : `Make collage (${selected.size})`}
               </Button>
             ) : (
               <>
@@ -383,6 +406,17 @@ function ResultsInner() {
           guestName={guestName}
           onClose={() => {
             setCollageOpen(false);
+            cancelSelecting();
+          }}
+        />
+      )}
+
+      {reelOpen && (
+        <ReelMaker
+          photos={selectedPhotos}
+          guestName={guestName ?? ""}
+          onClose={() => {
+            setReelOpen(false);
             cancelSelecting();
           }}
         />

@@ -490,6 +490,67 @@ export async function listSearches(opts: ListSearchesOptions = {}): Promise<Sear
     limit ${limit} offset ${offset}`;
 }
 
+export type ReelJobStatus = "queued" | "rendering" | "done" | "error";
+
+export interface InsertReelJobInput {
+  spec: unknown; // the validated ReelSpec, stored as jsonb
+  sessionId?: string | null;
+  guestName?: string | null;
+  ip?: string | null;
+}
+
+export async function insertReelJob(x: InsertReelJobInput): Promise<{ id: string }> {
+  const rows = await sql<{ id: string }[]>`
+    insert into reel_jobs (spec, session_id, guest_name, ip)
+    values (${sql.json(x.spec as unknown as Parameters<typeof sql.json>[0])}, ${x.sessionId ?? null}, ${x.guestName ?? null}, ${x.ip ?? null})
+    returning id`;
+  return rows[0];
+}
+
+export interface ReelJobRow {
+  id: string;
+  status: ReelJobStatus;
+  output_key: string | null;
+  error: string | null;
+}
+
+export async function getReelJob(id: string): Promise<ReelJobRow | null> {
+  const rows = await sql<ReelJobRow[]>`
+    select id, status, output_key, error from reel_jobs where id = ${id}`;
+  return rows[0] ?? null;
+}
+
+export async function setReelJobStatus(
+  id: string,
+  patch: { status: ReelJobStatus; outputKey?: string | null; error?: string | null },
+): Promise<void> {
+  await sql`
+    update reel_jobs set
+      status = ${patch.status},
+      output_key = coalesce(${patch.outputKey ?? null}, output_key),
+      error = coalesce(${patch.error ?? null}, error),
+      updated_at = now()
+    where id = ${id}`;
+}
+
+export interface ReelListRow {
+  id: string;
+  guest_name: string | null;
+  output_key: string | null;
+  created_at: Date;
+}
+
+export async function listReels(opts: { limit?: number; offset?: number } = {}): Promise<ReelListRow[]> {
+  const limit = opts.limit ?? 100;
+  const offset = opts.offset ?? 0;
+  return sql<ReelListRow[]>`
+    select id, guest_name, output_key, created_at
+    from reel_jobs
+    where status = 'done'
+    order by created_at desc
+    limit ${limit} offset ${offset}`;
+}
+
 export async function listMedia(opts: ListMediaOptions = {}): Promise<MediaRow[]> {
   const limit = opts.limit ?? 200;
   const offset = opts.offset ?? 0;
