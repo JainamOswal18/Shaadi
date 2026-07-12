@@ -122,4 +122,33 @@ describe("ReelMaker", () => {
     const createButton = screen.getByTestId("reel-create");
     expect(createButton).not.toBeDisabled();
   });
+
+  it("stops polling and shows a timeout error after ~3 minutes stuck rendering", async () => {
+    vi.useFakeTimers();
+    vi.mocked(createReel).mockResolvedValue({ jobId: "job-1" });
+    // The render never finishes — every poll comes back "rendering".
+    vi.mocked(pollReel).mockResolvedValue({ status: "rendering" });
+
+    render(<ReelMaker photos={PHOTOS} guestName="Asha" onClose={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("reel-create"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(createReel).toHaveBeenCalledTimes(1);
+
+    // Advance well past the ~3 minute deadline, one 2s tick at a time — a
+    // single huge jump doesn't reliably flush 90 chained async interval
+    // callbacks under fake timers.
+    const ticks = Math.ceil((3 * 60 * 1000) / 2000) + 2;
+    for (let i = 0; i < ticks; i++) {
+      await vi.advanceTimersByTimeAsync(2000);
+    }
+
+    expect(screen.getByTestId("reel-error")).toHaveTextContent(/taking longer than expected/i);
+    const createButton = screen.getByTestId("reel-create");
+    expect(createButton).not.toBeDisabled();
+
+    const callsAtTimeout = vi.mocked(pollReel).mock.calls.length;
+    // No further polling once the timeout has fired.
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(vi.mocked(pollReel).mock.calls.length).toBe(callsAtTimeout);
+  });
 });

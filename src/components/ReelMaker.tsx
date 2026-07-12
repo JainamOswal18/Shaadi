@@ -39,6 +39,9 @@ type Phase = "editing" | "rendering" | "done" | "error";
 
 // How often to poll /api/reel while a job is rendering.
 const POLL_INTERVAL_MS = 2000;
+// Give up after ~3 minutes of polling: a render that hasn't finished by then
+// is treated as stuck rather than left to spin "Rendering…" forever.
+const POLL_TIMEOUT_MS = 3 * 60 * 1000;
 
 export function ReelMaker({
   photos,
@@ -113,20 +116,35 @@ export function ReelMaker({
   }
 
   function startPolling(id: string) {
+    // Tick-counted rather than Date.now()-based so it's exact under both real
+    // timers and fake ones in tests.
+    const maxAttempts = Math.ceil(POLL_TIMEOUT_MS / POLL_INTERVAL_MS);
+    let attempts = 0;
     pollTimer.current = setInterval(async () => {
+      attempts += 1;
       try {
         const res = await pollReel(id);
         if (res.status === "done") {
           if (pollTimer.current) clearInterval(pollTimer.current);
           setVideoUrl(res.url ?? null);
           setPhase("done");
+          return;
         } else if (res.status === "error") {
           if (pollTimer.current) clearInterval(pollTimer.current);
           setErrorMsg(res.error ?? "Something went wrong");
           setPhase("error");
+          return;
         }
       } catch {
         // Transient poll failure — the interval tries again next tick.
+      }
+      // Still queued/rendering (or a transient poll error) past the deadline:
+      // stop polling a render that's probably dead instead of spinning
+      // forever, and surface it so the guest isn't left staring at a spinner.
+      if (attempts >= maxAttempts) {
+        if (pollTimer.current) clearInterval(pollTimer.current);
+        setErrorMsg("This is taking longer than expected. Please try again.");
+        setPhase("error");
       }
     }, POLL_INTERVAL_MS);
   }
@@ -142,6 +160,7 @@ export function ReelMaker({
         totalSeconds,
         transition,
         song: { id: songId, startSec: Math.round(songStartSec) },
+        guestName,
       };
       const { jobId } = await createReel(spec);
       startPolling(jobId);
