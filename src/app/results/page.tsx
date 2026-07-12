@@ -68,7 +68,11 @@ function ResultsInner() {
       // selections and rate-limited callers; saveFromApi surfaces those as a
       // typed ApiError with a machine-readable `code` instead of saving JSON.
       if (err instanceof ApiError && err.code === "prepare") {
-        toast("This album is too large to download here", { description: err.message });
+        toast("This album is too large to zip", {
+          description:
+            err.message ||
+            "Open any photo and use “Download original” to save them individually.",
+        });
       } else if (err instanceof ApiError && err.code === "rate_limited") {
         toast.error("Too many downloads right now", {
           description: "Please wait a minute and try again.",

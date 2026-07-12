@@ -18,11 +18,13 @@ function extOf(key: string): string {
   return ext || "jpg";
 }
 
-// Fallback thresholds: above either bound we do not build the ZIP inline (it
-// would tie up the function too long / risk memory pressure) and instead tell
-// the client to use the async "prepare" flow.
-const MAX_ZIP_BYTES = 1.5 * 1024 * 1024 * 1024; // 1.5 GB
-const MAX_ZIP_FILES = 300;
+// Fallback thresholds: above either bound we do not build the ZIP inline. The
+// archive streams (constant memory), so the real risk is the function's request
+// time limit being hit mid-download on a slow client — which would truncate the
+// ZIP. These bounds cover essentially every real guest album in one download;
+// only pathologically large sets fall back to the "download individually" hint.
+const MAX_ZIP_BYTES = 4 * 1024 * 1024 * 1024; // 4 GB
+const MAX_ZIP_FILES = 1000;
 
 /**
  * Resolve the originating client IP. Behind Vercel/Cloudflare the real client is
@@ -81,7 +83,7 @@ export async function GET(req: Request): Promise<Response> {
       {
         mode: "prepare",
         message:
-          "This selection is too large to download directly. We'll prepare a ZIP and email you a link.",
+          "This album is too large to zip in one go. Open any photo and use “Download original” to save them individually.",
       },
       { status: 200 },
     );
