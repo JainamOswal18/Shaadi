@@ -32,6 +32,7 @@ all requests through (dev/local only).
 import base64
 import io
 import os
+import shutil
 import threading
 import urllib.request
 
@@ -77,7 +78,13 @@ def _ensure_models() -> None:
         path = os.path.join(dest, name)
         if os.path.exists(path) and os.path.getsize(path) >= expected_size:
             continue
-        urllib.request.urlretrieve(f"{MODEL_BASE_URL}/{name}", path)
+        # Cloudflare's r2.dev returns 403 to the default Python-urllib UA, so
+        # send a browser-like User-Agent when fetching the model files.
+        req = urllib.request.Request(
+            f"{MODEL_BASE_URL}/{name}", headers={"User-Agent": "Mozilla/5.0"}
+        )
+        with urllib.request.urlopen(req) as resp, open(path, "wb") as out:
+            shutil.copyfileobj(resp, out)
 
 
 def _get_app():

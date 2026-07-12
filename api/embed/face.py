@@ -70,7 +70,10 @@ def ensure_models() -> None:
             continue
         url = f"{base_url}/{filename}"
         tmp_dest = dest + ".part"
-        urllib.request.urlretrieve(url, tmp_dest)  # noqa: S310 - trusted, fixed R2 URL
+        # Cloudflare r2.dev 403s the default Python-urllib UA; use a browser one.
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})  # noqa: S310
+        with urllib.request.urlopen(req) as resp, open(tmp_dest, "wb") as out:  # noqa: S310
+            shutil.copyfileobj(resp, out)
         if os.path.getsize(tmp_dest) < expected_size:
             os.remove(tmp_dest)
             raise RuntimeError(
