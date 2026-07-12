@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { pngFile } from "./_helpers";
+import { pngFile, seedIntroSeen } from "./_helpers";
 
 test("home: enter name + selfie, submit routes to results", async ({ page }) => {
+  await seedIntroSeen(page);
   await page.goto("/");
 
   const nameField = page.getByLabel(/your name/i);

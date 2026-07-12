@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pngFile } from "./_helpers";
+import { pngFile, seedIntroSeen } from "./_helpers";
 
 // Mirrors MOCK_PASSCODE in src/mocks/handlers.ts.
 const MOCK_PASSCODE = "1234-mandap";
@@ -16,6 +16,7 @@ test("home: passcode required — field is required, wrong code rejected, correc
       passcode_enabled: true,
     };
   });
+  await seedIntroSeen(page);
   await page.goto("/");
 
   await page.getByLabel(/your name/i).fill("Priya Sharma");
@@ -38,6 +39,7 @@ test("home: passcode required — field is required, wrong code rejected, correc
 });
 
 test("home: passcode field is absent when the host hasn't required one", async ({ page }) => {
+  await seedIntroSeen(page);
   await page.goto("/");
   await page.getByLabel(/your name/i).waitFor({ state: "visible" });
   await expect(page.getByLabel(/event passcode/i)).toHaveCount(0);

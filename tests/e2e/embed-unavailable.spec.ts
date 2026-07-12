@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pngFile } from "./_helpers";
+import { pngFile, seedIntroSeen } from "./_helpers";
 
 // The face-embedding compute is hosted separately from Vercel (see
 // embed-service/) and can be unreachable — e.g. mid-deploy on EC2 — long
@@ -19,6 +19,7 @@ test("home: embed service unavailable shows a calm 'coming soon' message, not an
       embed_unavailable: true,
     };
   });
+  await seedIntroSeen(page);
   await page.goto("/");
 
   await page.getByLabel(/your name/i).fill("Priya Sharma");

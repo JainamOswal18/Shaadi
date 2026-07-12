@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pngFile } from "./_helpers";
+import { pngFile, seedIntroSeen } from "./_helpers";
 
 // F4a: /api/search returns a real 503 {error:"maintenance"} when the host's
 // kill switch is on. The home page must show the dedicated "paused" message
@@ -16,6 +16,7 @@ test("home: maintenance mode shows the paused message, not a generic error", asy
       kill_switch: true,
     };
   });
+  await seedIntroSeen(page);
   await page.goto("/");
 
   await page.getByLabel(/your name/i).fill("Priya Sharma");
