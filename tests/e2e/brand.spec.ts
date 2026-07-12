@@ -5,3 +5,11 @@ test("home has the Jeena document title", async ({ page }) => {
   // Playwright's toHaveTitle auto-waits/retries, so this is hydration-safe.
   await expect(page).toHaveTitle(/Our Wedding · Jeena/);
 });
+
+test("home shows no Devanagari after hydration", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("Jeena").first()).toBeVisible();
+  const body = await page.locator("body").innerText();
+  expect(body).not.toContain("शादी");
+  expect(body).not.toContain("जीना");
+});

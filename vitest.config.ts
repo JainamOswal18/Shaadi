@@ -42,7 +42,11 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: false,
-    include: ["tests/unit/**/*.test.{ts,tsx}", "tests/integration/**/*.test.{ts,tsx}"],
+    include: [
+      "tests/unit/**/*.test.{ts,tsx}",
+      "tests/integration/**/*.test.{ts,tsx}",
+      "tests/components/**/*.test.{ts,tsx}",
+    ],
     setupFiles: ["./tests/unit/setup.ts"],
     env: dotEnv,
     // Integration suites hit a real (remote) Neon DB and unit suites encode

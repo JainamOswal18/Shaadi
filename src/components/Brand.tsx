@@ -2,43 +2,40 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 /**
- * The Shaadi wordmark. Fraunces italic display with a small Devanagari mark
- * and a marigold accent dot — an invitation-card signature, not a logo box.
+ * The Jeena wordmark — "JEENA" set in Fraunces caps, letterspaced, with an
+ * optional "Est. 2026 · Forever" subline for large placements.
  */
 export function Brand({
   className,
   size = "md",
   href = "/",
-  withDevanagari = true,
+  withEst = false,
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
   href?: string | null;
-  withDevanagari?: boolean;
+  withEst?: boolean;
 }) {
   const sizes = {
-    sm: "text-xl",
-    md: "text-2xl sm:text-3xl",
-    lg: "text-4xl sm:text-5xl",
+    sm: "text-lg",
+    md: "text-xl sm:text-2xl",
+    lg: "text-3xl sm:text-4xl",
   } as const;
 
   const content = (
-    <span className="inline-flex items-baseline gap-2">
+    <span className="inline-flex flex-col items-center">
       <span
         className={cn(
-          "font-heading font-semibold tracking-tight text-maroon italic",
+          "font-heading font-semibold uppercase text-maroon",
+          "tracking-[0.18em]",
           sizes[size],
         )}
       >
-        Shaadi
-        <span className="text-marigold-deep not-italic">.</span>
+        Jeena
       </span>
-      {withDevanagari && (
-        <span
-          className="font-[family-name:var(--font-devanagari)] text-sm text-marigold-deep/90"
-          aria-hidden
-        >
-          शादी
+      {withEst && size === "lg" && (
+        <span className="mt-1 text-[0.6rem] font-medium uppercase tracking-[0.3em] text-marigold-deep">
+          Est. 2026 · Forever
         </span>
       )}
     </span>
@@ -51,7 +48,7 @@ export function Brand({
   return (
     <Link
       href={href}
-      aria-label="Shaadi — home"
+      aria-label="Jeena — home"
       className={cn(
         "inline-flex rounded-lg focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none",
         className,
