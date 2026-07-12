@@ -206,7 +206,12 @@ def _build_ffmpeg_cmd(frames, audio, width, height, transition, total_seconds, o
             filters.append(
                 f"[{i}:v]scale={width}:{height},setsar=1,"
                 f"zoompan=z='min(zoom+0.0015,1.5)':d={d}:"
-                f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}:fps={fps}[v{i}]"
+                f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}:fps={fps},"
+                # Bound each clip to exactly its own duration: zoompan emits `d`
+                # frames PER input frame, and the looped still feeds many frames,
+                # so without this trim the stream explodes to minutes/GBs. trim is
+                # pull-based, so ffmpeg only ever generates the frames we keep.
+                f"trim=duration={f['seconds']},setpts=PTS-STARTPTS[v{i}]"
             )
         labels = "".join(f"[v{i}]" for i in range(n))
         filters.append(f"{labels}concat=n={n}:v=1:a=0[vout]")
@@ -235,7 +240,8 @@ def _build_ffmpeg_cmd(frames, audio, width, height, transition, total_seconds, o
     cmd += ["-filter_complex", ";".join(filters), "-map", "[vout]"]
     if audio_idx is not None:
         cmd += ["-map", f"{audio_idx}:a", "-c:a", "aac", "-b:a", "128k", "-shortest"]
-    cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
+    cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+            "-pix_fmt", "yuv420p", "-r", "30",
             "-movflags", "+faststart", out_path]
     return cmd
 
