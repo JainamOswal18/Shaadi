@@ -1,0 +1,15 @@
+# Verified compatible set — installed and validated on Python 3.13 (Apple
+# Silicon, CPU) producing a 512-d unit-norm buffalo_l embedding. See
+# task-5-report.md for the RUN_EMBED proof.
+#
+# Notes:
+#  * numpy<2: insightface 0.7.3 is built/tested against the NumPy 1.x ABI.
+#  * onnx==1.17.0: insightface pulls onnx transitively; its newest releases
+#    (1.19.x) reference ml_dtypes.float4_e2m1fn, which is absent from the
+#    ml_dtypes 0.4.1 that onnxruntime 1.20.1 pins — pinning onnx here avoids
+#    that AttributeError at import time.
+insightface==0.7.3
+onnxruntime==1.20.1
+onnx==1.17.0
+numpy==1.26.4
+pillow==11.3.0

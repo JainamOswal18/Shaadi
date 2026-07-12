@@ -1,0 +1,16 @@
+# Ingest pipeline dependencies (installed into the shared repo .venv).
+#
+# The InsightFace stack (insightface, onnxruntime, numpy) and Pillow are the
+# SAME ones the live embed function uses — see api/embed/requirements.txt.
+# These are the ADDITIONAL packages the local ingest script needs on top of it.
+#
+# InsightFace / model runtime (shared with api/embed) — listed for a clean install:
+insightface==0.7.3
+onnxruntime==1.20.1
+numpy==1.26.4
+Pillow==11.3.0            # 11.x ships native AVIF support (features.check("avif"))
+
+# Ingest-specific:
+boto3==1.43.46           # R2 (S3-compatible) uploads
+psycopg[binary]==3.3.4   # Neon Postgres + pgvector inserts
+tqdm==4.68.4             # progress bar

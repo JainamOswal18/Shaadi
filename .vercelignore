@@ -1,0 +1,11 @@
+.venv
+.wt
+ingest
+docs
+.superpowers
+tests
+.git
+# Embed fn (InsightFace, ~552MB deps) exceeds Vercel Hobby's 500MB function
+# limit even with VERCEL_SUPPORT_LARGE_FUNCTIONS set (Pro-gated). Host the
+# embed service externally (see embed-service/) and point EMBED_FN_URL at it.
+api/embed

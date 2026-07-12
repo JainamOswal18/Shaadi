@@ -1,0 +1,30 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.venv/
+__pycache__/
+.next/
+.vercel/
+*.log
+.DS_Store
+/ingest/models/
+/ingest/.cache/
+/api/embed/models/
+
+.wrangler/
+
+.superpowers/
+
+# Next.js / Node tooling
+*.tsbuildinfo
+next-env.d.ts
+/coverage/
+*.pem
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+.wt/
+.vercel
