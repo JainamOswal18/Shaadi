@@ -98,7 +98,7 @@ export default function Home() {
 
       <section className="mt-8 text-center">
         <p className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-marigold-deep">
-          <Sparkles className="size-3.5" /> Aarav weds Meera
+          <Sparkles className="size-3.5" /> Nameeta weds Jeenendra
         </p>
         <h1 className="mt-4 text-balance font-heading text-[2rem] leading-[1.1] font-semibold text-maroon sm:text-4xl">
           Every photo you&rsquo;re in, gathered in one place.
@@ -200,7 +200,7 @@ export default function Home() {
         >
           <Heart className="size-4 text-marigold-deep" /> Share your photos with the couple
         </Link>
-        <p className="text-xs">Made with love for Aarav &amp; Meera&rsquo;s big day.</p>
+        <p className="text-xs">Made with love for Nameeta &amp; Jeenendra&rsquo;s big day.</p>
       </footer>
     </main>
   );
