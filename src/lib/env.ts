@@ -19,6 +19,10 @@ const Schema = z.object({
   // against an unauthenticated embed service; required in practice once the
   // embed service is reachable from the public internet (EC2).
   EMBED_API_KEY: z.string().optional(),
+  // The reel-render endpoint on the same EC2 embed-service box. Optional so
+  // local dev / tests can run without it configured; defaults to the local
+  // dev URL in reel-client.ts when unset.
+  REEL_FN_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof Schema>;
