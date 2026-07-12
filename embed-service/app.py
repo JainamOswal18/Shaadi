@@ -31,13 +31,17 @@ all requests through (dev/local only).
 
 import base64
 import io
+import json
 import os
 import shutil
+import subprocess
+import tempfile
 import threading
 import urllib.request
 
+import boto3
 import numpy as np
-from fastapi import FastAPI, Request
+from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 from PIL import Image, ImageOps
 
@@ -136,8 +140,6 @@ async def embed(request: Request):
     body = await request.body()
     try:
         if ctype.startswith("application/json"):
-            import json
-
             data = json.loads(body or b"{}")
             b64 = data.get("imageBase64")
             if not b64:
@@ -150,3 +152,150 @@ async def embed(request: Request):
         return {"faces": get_faces(image_bytes)}
     except Exception as e:  # noqa: BLE001 - surface a clean 400 to the caller
         return JSONResponse({"error": f"could not process image: {e}"}, status_code=400)
+
+
+# ---------------------------------------------------------------------------
+# POST /reel — ffmpeg slideshow render (Reel maker, plan Task 9)
+#
+# Consumes the ReelDispatchPayload posted by src/lib/reel-client.ts. Renders
+# in a FastAPI BackgroundTasks job so the request itself returns 202
+# immediately; on completion (success or failure) it POSTs the result back
+# to the payload's callbackUrl (src/app/api/reel/callback/route.ts).
+# ---------------------------------------------------------------------------
+
+R2_ENDPOINT = os.environ.get("R2_ENDPOINT")
+R2_BUCKET_ORIGINALS = os.environ.get("R2_BUCKET_ORIGINALS", "shaadi-photos")
+
+
+def _r2():
+    return boto3.client(
+        "s3",
+        endpoint_url=R2_ENDPOINT,
+        aws_access_key_id=os.environ.get("R2_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("R2_SECRET_ACCESS_KEY"),
+        region_name="auto",
+    )
+
+
+def _download_and_normalize(url: str, dest: str, width: int, height: int) -> None:
+    """Fetch a preview and re-encode to a uniform cover-cropped ~90% JPEG."""
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req) as resp:
+        img = Image.open(io.BytesIO(resp.read())).convert("RGB")
+    img = ImageOps.exif_transpose(img)
+    img = ImageOps.fit(img, (width, height), method=Image.LANCZOS)  # cover-crop
+    img.save(dest, "JPEG", quality=90)
+
+
+def _build_ffmpeg_cmd(frames, audio, width, height, transition, total_seconds, out_path):
+    """Compose the slideshow. Uniform WxH JPEG inputs (already cover-cropped)."""
+    n = len(frames)
+    xfade = 0.6  # crossfade seconds
+    inputs = []
+    for i, f in enumerate(frames):
+        # Each still shown for its segment; +xfade padding on crossfade so the
+        # overlap doesn't shorten a clip.
+        dur = f["seconds"] + (xfade if transition == "crossfade" and i < n - 1 else 0)
+        inputs += ["-loop", "1", "-t", f"{dur:.3f}", "-i", f["path"]]
+
+    filters = []
+    if transition == "kenburns":
+        fps = 30
+        for i, f in enumerate(frames):
+            d = max(1, int(f["seconds"] * fps))
+            filters.append(
+                f"[{i}:v]scale={width}:{height},setsar=1,"
+                f"zoompan=z='min(zoom+0.0015,1.5)':d={d}:"
+                f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}:fps={fps}[v{i}]"
+            )
+        labels = "".join(f"[v{i}]" for i in range(n))
+        filters.append(f"{labels}concat=n={n}:v=1:a=0[vout]")
+    elif transition == "crossfade":
+        for i in range(n):
+            filters.append(f"[{i}:v]scale={width}:{height},setsar=1,fps=30[v{i}]")
+        prev, offset = "[v0]", 0.0
+        for i in range(1, n):
+            offset += frames[i - 1]["seconds"]
+            out = "[vout]" if i == n - 1 else f"[x{i}]"
+            filters.append(f"{prev}[v{i}]xfade=transition=fade:duration={xfade}:offset={offset:.3f}{out}")
+            prev = out
+        if n == 1:
+            filters.append("[v0]null[vout]")
+    else:  # cut
+        for i in range(n):
+            filters.append(f"[{i}:v]scale={width}:{height},setsar=1,fps=30[v{i}]")
+        labels = "".join(f"[v{i}]" for i in range(n))
+        filters.append(f"{labels}concat=n={n}:v=1:a=0[vout]")
+
+    cmd = ["ffmpeg", "-y", *inputs]
+    audio_idx = None
+    if audio and audio.get("path"):
+        audio_idx = n
+        cmd += ["-ss", str(audio.get("startSec", 0)), "-t", str(total_seconds), "-i", audio["path"]]
+    cmd += ["-filter_complex", ";".join(filters), "-map", "[vout]"]
+    if audio_idx is not None:
+        cmd += ["-map", f"{audio_idx}:a", "-c:a", "aac", "-b:a", "128k", "-shortest"]
+    cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
+            "-movflags", "+faststart", out_path]
+    return cmd
+
+
+def _callback(url: str, body: dict) -> None:
+    data = json.dumps(body).encode()
+    headers = {"content-type": "application/json"}
+    if EMBED_API_KEY:
+        headers["authorization"] = f"Bearer {EMBED_API_KEY}"
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        urllib.request.urlopen(req, timeout=15).read()
+    except Exception as e:  # noqa: BLE001
+        print(f"reel callback failed: {e}")
+
+
+def _render_job(spec: dict) -> None:
+    job_id = spec["jobId"]
+    cb = spec.get("callbackUrl")
+    try:
+        with tempfile.TemporaryDirectory() as work:
+            w, h = spec["width"], spec["height"]
+            frames = []
+            for i, fr in enumerate(spec["frames"]):
+                p = os.path.join(work, f"f{i}.jpg")
+                _download_and_normalize(fr["url"], p, w, h)
+                frames.append({"path": p, "seconds": fr["seconds"]})
+            audio = None
+            au = spec.get("audio") or {}
+            if au.get("url"):
+                ap = os.path.join(work, "audio.src")
+                req = urllib.request.Request(au["url"], headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req) as r, open(ap, "wb") as out:
+                    shutil.copyfileobj(r, out)
+                audio = {"path": ap, "startSec": au.get("startSec", 0)}
+            out_path = os.path.join(work, "out.mp4")
+            cmd = _build_ffmpeg_cmd(frames, audio, w, h, spec["transition"],
+                                    spec["totalSeconds"], out_path)
+            proc = subprocess.run(cmd, capture_output=True)
+            if proc.returncode != 0:
+                raise RuntimeError(proc.stderr.decode()[-500:])
+            _r2().upload_file(out_path, R2_BUCKET_ORIGINALS, spec["outputKey"],
+                              ExtraArgs={"ContentType": "video/mp4"})
+        if cb:
+            _callback(cb, {"jobId": job_id, "status": "done", "outputKey": spec["outputKey"]})
+    except Exception as e:  # noqa: BLE001
+        print(f"reel render failed for {job_id}: {e}")
+        if cb:
+            _callback(cb, {"jobId": job_id, "status": "error", "error": str(e)[:500]})
+
+
+@app.post("/reel")
+async def reel(request: Request, background_tasks: BackgroundTasks):
+    if not _authorized(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    try:
+        spec = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid json"}, status_code=400)
+    if not spec.get("jobId") or not spec.get("frames"):
+        return JSONResponse({"error": "jobId and frames required"}, status_code=400)
+    background_tasks.add_task(_render_job, spec)
+    return JSONResponse({"accepted": True, "jobId": spec["jobId"]}, status_code=202)
