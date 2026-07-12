@@ -37,6 +37,13 @@ export function SelfieCapture({
     }
   }, []);
 
+  const clearRestart = useCallback(() => {
+    if (restartDelayRef.current) {
+      clearTimeout(restartDelayRef.current);
+      restartDelayRef.current = null;
+    }
+  }, []);
+
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -53,9 +60,9 @@ export function SelfieCapture({
     () => () => {
       stopStream();
       clearStuckTimer();
-      if (restartDelayRef.current) clearTimeout(restartDelayRef.current);
+      clearRestart();
     },
-    [stopStream, clearStuckTimer],
+    [stopStream, clearStuckTimer, clearRestart],
   );
 
   useEffect(() => {
@@ -128,15 +135,21 @@ export function SelfieCapture({
     if (videoRef.current) videoRef.current.srcObject = null;
     videoReadyRef.current = false;
     setCameraStuck(false);
-    if (restartDelayRef.current) clearTimeout(restartDelayRef.current);
+    // Leave "live" immediately so the Capture button (and its now-blank video
+    // frame) can't be tapped during the teardown/re-request window.
+    setMode("requesting");
+    clearRestart();
     // give the OS a beat to release the camera before re-requesting it
     restartDelayRef.current = setTimeout(() => {
       restartDelayRef.current = null;
       void startCamera();
     }, 300);
-  }, [stopStream, startCamera]);
+  }, [stopStream, startCamera, clearRestart]);
 
   const capture = useCallback(() => {
+    // A capture in progress supersedes any queued restart — cancel it so it
+    // can't fire later and silently discard this selfie.
+    clearRestart();
     const video = videoRef.current;
     if (!video) return;
     const size = Math.min(video.videoWidth, video.videoHeight) || 512;
@@ -163,10 +176,13 @@ export function SelfieCapture({
       "image/jpeg",
       0.9,
     );
-  }, [onChange, stopStream]);
+  }, [onChange, stopStream, clearRestart]);
 
   const onFile = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      // A file pick supersedes any queued restart — cancel it so it can't
+      // fire later and silently reopen the camera over the chosen photo.
+      clearRestart();
       const file = e.target.files?.[0];
       if (!file) return;
       if (!file.type.startsWith("image/")) {
@@ -181,10 +197,13 @@ export function SelfieCapture({
       stopStream();
       onChange({ blob: file, url });
     },
-    [onChange, stopStream],
+    [onChange, stopStream, clearRestart],
   );
 
   const retake = useCallback(() => {
+    // Retake supersedes any queued restart — cancel it so it can't fire
+    // later and clobber the fresh idle state we're about to set.
+    clearRestart();
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
     setMode("idle");
@@ -193,7 +212,7 @@ export function SelfieCapture({
     clearStuckTimer();
     onChange(null);
     if (fileRef.current) fileRef.current.value = "";
-  }, [onChange, preview, clearStuckTimer]);
+  }, [onChange, preview, clearStuckTimer, clearRestart]);
 
   return (
     <div className="flex flex-col gap-3">
