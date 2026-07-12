@@ -174,6 +174,29 @@ describe("download routes (integration, isolated schema)", () => {
     expect(rows[0].c).toBe(1);
   });
 
+  it("GET /api/download-zip?start=&count= zips only the requested part slice", async () => {
+    // Part 1: first matched id only.
+    const p1 = await zipGET(
+      new Request(`http://localhost/api/download-zip?sessionId=${sessionId}&start=0&count=1`, {
+        headers: IP_HEADERS,
+      }),
+    );
+    expect(p1.status).toBe(200);
+    expect(p1.headers.get("content-type")).toBe("application/zip");
+    // Filename carries the 1-based photo range for this part.
+    expect(p1.headers.get("content-disposition")).toContain("shaadi-photos_1-1.zip");
+    expect(listZipEntries(Buffer.from(await p1.arrayBuffer()))).toEqual([`${photo1.id}.jpg`]);
+
+    // Part 2: second matched id only (the slice offset by `start`).
+    const p2 = await zipGET(
+      new Request(`http://localhost/api/download-zip?sessionId=${sessionId}&start=1&count=1`, {
+        headers: IP_HEADERS,
+      }),
+    );
+    expect(p2.status).toBe(200);
+    expect(listZipEntries(Buffer.from(await p2.arrayBuffer()))).toEqual([`${photo2.id}.jpg`]);
+  });
+
   it("GET /api/download-zip for an unknown session returns 404", async () => {
     const req = new Request(`http://localhost/api/download-zip?sessionId=${randomUUID()}`, {
       headers: IP_HEADERS,
