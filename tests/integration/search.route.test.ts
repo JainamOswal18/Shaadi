@@ -161,28 +161,43 @@ describe("POST /api/search (integration, isolated schema)", () => {
     expect(body.matches[0].thumbUrl.startsWith(previewsBase)).toBe(true);
     expect(body.matches[0].previewUrl).toBe(`${previewsBase}/preview/near.jpg`);
 
-    // B3: the selfie is NEVER persisted — no object is put to R2 at all.
-    expect(s3mock.commandCalls(PutObjectCommand)).toHaveLength(0);
+    // The selfie is privately persisted under selfies/<sessionId>.jpg.
+    const puts = s3mock.commandCalls(PutObjectCommand);
+    expect(puts).toHaveLength(1);
+    const putInput = puts[0].args[0].input as { Key?: string; Bucket?: string; ContentType?: string };
+    expect(putInput.Key).toBe(`selfies/${body.sessionId}.jpg`);
+    expect(putInput.Bucket).toBe(process.env.R2_BUCKET_ORIGINALS ?? "shaadi-photos");
+    expect(putInput.ContentType).toBe("image/jpeg");
 
-    // A search session was logged, and selfie_key is null (nothing retained).
+    // A search session was logged with the stored selfie_key.
     const rows = await sql`select match_count, guest_name, selfie_key from search_sessions`;
     expect(rows).toHaveLength(1);
     expect(Number(rows[0].match_count)).toBe(1);
     expect(rows[0].guest_name).toBe("Alice");
-    expect(rows[0].selfie_key).toBeNull();
+    expect(rows[0].selfie_key).toBe(`selfies/${body.sessionId}.jpg`);
   });
 
-  it("B3: does not put any object under selfies/ and logs selfie_key=null", async () => {
-    const res = await POST(makeRequest({ ip: "9.9.9.9", guestName: "NoStore" }));
+  it("stores the selfie under selfies/<sessionId>.jpg for every search, keyed by sessionId", async () => {
+    const res = await POST(makeRequest({ ip: "9.9.9.9", guestName: "Bob" }));
     expect(res.status).toBe(200);
+    const body = (await res.json()) as { sessionId: string };
 
-    // No PutObjectCommand at all, and specifically nothing keyed under selfies/.
     const puts = s3mock.commandCalls(PutObjectCommand);
-    expect(puts).toHaveLength(0);
     const selfiePuts = puts.filter((c) =>
       String((c.args[0].input as { Key?: string }).Key ?? "").startsWith("selfies/"),
     );
-    expect(selfiePuts).toHaveLength(0);
+    expect(selfiePuts).toHaveLength(1);
+    expect((selfiePuts[0].args[0].input as { Key?: string }).Key).toBe(
+      `selfies/${body.sessionId}.jpg`,
+    );
+  });
+
+  it("best-effort selfie storage: an R2 put failure still returns 200 and logs selfie_key=null", async () => {
+    s3mock.on(PutObjectCommand).rejects(new Error("R2 unreachable"));
+    const res = await POST(makeRequest({ ip: "9.9.9.9", guestName: "NoStore" }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { matches: { photoId: string }[] };
+    expect(body.matches[0].photoId).toBe(nearPhotoId);
 
     const rows = await sql`select selfie_key from search_sessions`;
     expect(rows).toHaveLength(1);

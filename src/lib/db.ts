@@ -474,6 +474,35 @@ export interface ListMediaOptions {
  * poster_key (null if a poster failed to generate) — the caller resolves it to
  * a public URL via `previewUrl`.
  */
+export interface SearchLogRow {
+  id: string;
+  guest_name: string | null;
+  selfie_key: string | null;
+  match_count: number | null;
+  created_at: Date;
+}
+
+export interface ListSearchesOptions {
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Paginated "who searched" feed for the admin console: recent search sessions
+ * (including their private selfie key, when one was stored), newest first.
+ * The caller resolves `selfie_key` to a short-lived signed URL via
+ * `presignGet` — this table never exposes a public URL for a selfie.
+ */
+export async function listSearches(opts: ListSearchesOptions = {}): Promise<SearchLogRow[]> {
+  const limit = opts.limit ?? 20;
+  const offset = opts.offset ?? 0;
+  return sql<SearchLogRow[]>`
+    select id, guest_name, selfie_key, match_count, created_at
+    from search_sessions
+    order by created_at desc
+    limit ${limit} offset ${offset}`;
+}
+
 export async function listMedia(opts: ListMediaOptions = {}): Promise<MediaRow[]> {
   const limit = opts.limit ?? 200;
   const offset = opts.offset ?? 0;

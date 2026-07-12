@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getSettings, logSearch, searchByEmbedding } from "@/lib/db";
 import { embedImage, largestFace } from "@/lib/embed-client";
 import { verifyPasscode } from "@/lib/passcode";
-import { previewUrl } from "@/lib/r2";
+import { previewUrl, putObject } from "@/lib/r2";
 import { checkRateLimit } from "@/lib/ratelimit";
 import type { SearchResponse } from "@/lib/types";
 
@@ -75,9 +75,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const bytes = Buffer.from(await selfie.arrayBuffer());
 
-  // 4. Embed the selfie and pick the largest detected face. The selfie bytes are
-  //    used only in-memory for this computation and are never persisted (the UI
-  //    promises the selfie is discarded after matching).
+  // 4. Embed the selfie and pick the largest detected face.
   let embedResponse: Awaited<ReturnType<typeof embedImage>>;
   try {
     embedResponse = await embedImage(bytes);
@@ -91,9 +89,22 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "no_face" }, { status: 422 });
   }
 
-  // 5. Correlate this search under a fresh session id. The selfie itself is
-  //    intentionally NOT stored (selfie_key stays null) — see B3.
+  // 5. Correlate this search under a fresh session id.
   const sessionId = randomUUID();
+
+  // 5b. Privately persist the selfie for the admin "Who searched" view. This is
+  //     best-effort: a storage failure must never fail the guest-facing search,
+  //     so we swallow the error and log a null selfie_key instead. The object
+  //     lives in the private originals bucket (never the public previews
+  //     bucket) — only a short-lived signed URL exposes it, to an admin only.
+  let selfieKey: string | null = null;
+  try {
+    const key = `selfies/${sessionId}.jpg`;
+    await putObject(key, bytes, "image/jpeg");
+    selfieKey = key;
+  } catch (err) {
+    console.error("search: selfie storage failed (non-fatal):", err);
+  }
 
   // 6. Vector search for matching faces above the configured threshold.
   const results = await searchByEmbedding(embedding, settings.matchThreshold, MATCH_LIMIT);
@@ -112,7 +123,7 @@ export async function POST(req: Request): Promise<Response> {
     guestName,
     ip,
     userAgent: req.headers.get("user-agent"),
-    selfieKey: null, // B3: selfies are never persisted.
+    selfieKey,
     matchCount: matches.length,
     matchedIds: matches.map((m) => m.photoId),
   });
