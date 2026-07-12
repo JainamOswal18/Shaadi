@@ -229,12 +229,14 @@ export function themeById(id: string): CollageTheme {
   return THEMES.find((t) => t.id === id) ?? THEMES[0];
 }
 
-export type CollageMotif = "plain" | "wash" | "garland";
+export type CollageMotif = "plain" | "wash" | "garland" | "phera" | "doli";
 
 export const MOTIFS: { id: CollageMotif; label: string }[] = [
   { id: "plain", label: "Plain" },
   { id: "wash", label: "Marigold wash" },
   { id: "garland", label: "Garland" },
+  { id: "phera", label: "Phera" },
+  { id: "doli", label: "Doli" },
 ];
 
 export type SlotTransform = { scale: number; offsetX: number; offsetY: number };
