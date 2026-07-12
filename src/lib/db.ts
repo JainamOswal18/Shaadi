@@ -502,7 +502,7 @@ export interface InsertReelJobInput {
 export async function insertReelJob(x: InsertReelJobInput): Promise<{ id: string }> {
   const rows = await sql<{ id: string }[]>`
     insert into reel_jobs (spec, session_id, guest_name, ip)
-    values (${sql.json(x.spec as object)}, ${x.sessionId ?? null}, ${x.guestName ?? null}, ${x.ip ?? null})
+    values (${sql.json(x.spec as unknown as Parameters<typeof sql.json>[0])}, ${x.sessionId ?? null}, ${x.guestName ?? null}, ${x.ip ?? null})
     returning id`;
   return rows[0];
 }

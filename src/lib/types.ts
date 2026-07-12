@@ -9,3 +9,9 @@ export type UploadUrlResponse = { grants: { name: string; key: string; putUrl: s
 export type AdminSettings = { match_threshold: number; passcode_enabled: boolean; kill_switch: boolean };
 /** Public, unauthenticated client bootstrap — GET /api/config. */
 export type ConfigResponse = { passcodeRequired: boolean };
+
+export type ReelJobStatus = "queued" | "rendering" | "done" | "error";
+/** POST /api/reel — create + dispatch a reel render. */
+export type CreateReelResponse = { jobId: string };
+/** GET /api/reel?jobId= — poll a reel job's status. */
+export type ReelStatusResponse = { status: ReelJobStatus; url?: string; error?: string };
