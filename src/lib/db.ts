@@ -216,6 +216,26 @@ export async function getPhotosForDownload(ids: string[]): Promise<DownloadPhoto
     where id = any(${ids}::uuid[]) and status = 'active'`;
 }
 
+export interface PreviewPhotoRow {
+  id: string;
+  thumb_key: string;
+  preview_key: string;
+}
+
+/**
+ * Active photos (by id) with their public thumb + preview keys — used to rebuild
+ * a search session's result set for `GET /api/session` without re-running face
+ * matching. Does NOT return `original_key` (that stays behind signed downloads).
+ * Order is not guaranteed; the caller re-orders by the session's `matched_ids`.
+ */
+export async function getPhotosByIds(ids: string[]): Promise<PreviewPhotoRow[]> {
+  if (ids.length === 0) return [];
+  return sql<PreviewPhotoRow[]>`
+    select id, thumb_key, preview_key
+    from photos
+    where id = any(${ids}::uuid[]) and status = 'active'`;
+}
+
 /** The original object key + size for a single active photo, or null. */
 export async function getPhotoOriginal(
   photoId: string,

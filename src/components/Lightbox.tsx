@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
-import { toast } from "sonner";
 import type { SearchResponse } from "@/lib/types";
-import { downloadUrl, saveFromApi } from "@/lib/api";
+import { downloadUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Photo = SearchResponse["matches"][number];
@@ -75,20 +74,20 @@ export function Lightbox({
           {index + 1} / {photos.length}
         </span>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
+          {/* Plain navigation to the download API: it 302-redirects to a
+              presigned R2 URL whose Content-Disposition forces the save. The
+              browser follows the redirect itself, so there is no cross-origin
+              fetch (no R2 CORS requirement) and the file never buffers in the
+              tab. `download` hints a filename for the same-origin hop; the
+              presigned response's own filename wins for the R2 hop. */}
+          <a
+            href={downloadUrl(photo.photoId)}
+            download={`${photo.photoId}.jpg`}
             data-testid="download-original"
-            onClick={async () => {
-              try {
-                await saveFromApi(downloadUrl(photo.photoId), `${photo.photoId}.jpg`);
-              } catch {
-                toast.error("Couldn't download this photo");
-              }
-            }}
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-marigold-deep px-4 text-sm font-medium text-white transition-colors hover:bg-marigold focus-visible:ring-3 focus-visible:ring-cream/50 focus-visible:outline-none"
           >
             <Download className="size-5" /> <span className="hidden sm:inline">Download</span> original
-          </button>
+          </a>
           <button
             ref={closeRef}
             type="button"

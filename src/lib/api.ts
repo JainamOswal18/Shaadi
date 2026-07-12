@@ -1,6 +1,7 @@
 import type {
   ConfigResponse,
   SearchResponse,
+  SessionResponse,
   UploadUrlRequest,
   UploadUrlResponse,
   AdminSettings,
@@ -63,6 +64,16 @@ export async function search(
 
 export const sessionKey = (sid: string) => `shaadi:search:${sid}`;
 
+/**
+ * Rebuild a past search's results from the server (no selfie re-embed). Used to
+ * restore an album on hard-reload or when a remembered guest returns.
+ */
+export async function fetchSession(sessionId: string): Promise<SessionResponse> {
+  return asJson<SessionResponse>(
+    await fetch(`/api/session?sessionId=${encodeURIComponent(sessionId)}`),
+  );
+}
+
 export function downloadUrl(photoId: string) {
   return `/api/download?photoId=${encodeURIComponent(photoId)}`;
 }
@@ -72,13 +83,29 @@ export function downloadZipUrl(sessionId: string) {
 }
 
 /**
- * Fetch a file through the API (so it can be mocked/authorized) and save it.
- * Using fetch instead of a bare <a download> keeps the request on the same
- * network path as the rest of the app.
+ * Fetch a same-origin file endpoint and save the response. Used for the ZIP
+ * album download, whose route lives on this origin (so `res.blob()` reads the
+ * body without any cross-origin CORS requirement).
+ *
+ * The endpoint can legitimately respond 200 with a JSON control signal instead
+ * of the file — the ZIP route returns `{ mode: "prepare" }` for oversized
+ * selections. We must NOT save that JSON as a `.zip` (a corrupt download):
+ * detect JSON and re-raise it as a typed `ApiError` (code mirrors the body's
+ * `mode`/`error`) so the caller can show a real message. Error responses are
+ * likewise surfaced with their machine-readable `code`.
  */
 export async function saveFromApi(url: string, fallbackName: string): Promise<void> {
   const res = await fetch(url);
-  if (!res.ok) throw new ApiError(res.status, "Download failed");
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!res.ok || contentType.includes("application/json")) {
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      mode?: string;
+      message?: string;
+    };
+    const code = body.error ?? body.mode;
+    throw new ApiError(res.status, body.message ?? code ?? "Download failed", code);
+  }
   const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);
   const disposition = res.headers.get("content-disposition") ?? "";
