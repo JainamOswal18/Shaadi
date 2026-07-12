@@ -10,7 +10,6 @@
 
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-fraunces), ui-serif, Georgia, serif;
-  --font-devanagari: var(--font-tiro), ui-serif, serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
   /* Brand tokens — the wedding palette */

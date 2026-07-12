@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Hanken_Grotesk, Tiro_Devanagari_Hindi } from "next/font/google";
+import { Fraunces, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { MswProvider } from "@/components/MswProvider";
@@ -18,23 +18,16 @@ const hanken = Hanken_Grotesk({
   display: "swap",
 });
 
-const tiro = Tiro_Devanagari_Hindi({
-  variable: "--font-tiro",
-  subsets: ["devanagari", "latin"],
-  display: "swap",
-  weight: "400",
-});
-
 export const metadata: Metadata = {
-  title: "Shaadi — Relive the wedding, one photo at a time",
+  title: "Our Wedding · Jeena",
   description:
-    "Snap a selfie and find every photo you're in from the celebration. A warm, private way to keep the wedding memories.",
+    "Nameeta & Jeenendra's wedding, in one place. Snap a selfie to find every photo you're in — relive, collage, and keep the memories.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#FBF6EC",
+  themeColor: "#FAF3EE",
 };
 
 export default function RootLayout({
@@ -43,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${fraunces.variable} ${hanken.variable} ${tiro.variable} antialiased`}
+        className={`${fraunces.variable} ${hanken.variable} antialiased`}
       >
         <MswProvider>{children}</MswProvider>
         <Toaster />
