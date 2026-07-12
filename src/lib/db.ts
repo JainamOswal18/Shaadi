@@ -6,14 +6,40 @@ const schema = process.env.DB_SCHEMA?.trim();
 // schema deterministically. Neon's pooled endpoint ignores postgres.js's
 // `connection: { search_path }` startup param, so we pass it via the libpq
 // `options` startup parameter on the URL, which the pooler honors.
-function withSearchPath(url: string, schemaName: string): string {
+//
+// `includePublic` appends `,public` so extension types/functions (the `vector`
+// type, `gen_random_uuid()`) — which live in `public` — resolve inside an
+// isolated schema. The safety guard below deliberately omits it.
+function withSearchPath(url: string, schemaName: string, includePublic = true): string {
   const u = new URL(url);
-  u.searchParams.set("options", `-c search_path=${schemaName},public`);
+  const path = includePublic ? `${schemaName},public` : schemaName;
+  u.searchParams.set("options", `-c search_path=${path}`);
   return u.toString();
 }
+
+// SAFETY GUARD — never let a test run mutate production.
+//
+// Integration suites clear tables in `beforeEach` (`delete from photos`, …).
+// That is only safe when this module is bound to an isolated per-test schema via
+// DB_SCHEMA. If a test causes `@/lib/db` to evaluate before DB_SCHEMA is set,
+// `sql` would otherwise bind to the default `public` schema — i.e. PRODUCTION —
+// and the teardown would erase the live gallery. (This happened once, on
+// 2026-07-12, and had to be recovered via a Neon point-in-time restore.)
+//
+// So under the test runner, when no isolated schema is configured, pin the
+// search_path to a schema that does not exist and do NOT fall back to `public`.
+// Any unqualified query then fails loudly ("relation … does not exist") instead
+// of silently hitting production. Fully-mocked unit tests are unaffected (they
+// replace the `postgres` module and never execute real SQL). Outside the test
+// runner this branch is never taken — production binds to `public` as before.
+const underTest = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+const dbUrl = loadEnv().DATABASE_URL;
+
 export const sql = schema
-  ? postgres(withSearchPath(loadEnv().DATABASE_URL, schema))
-  : postgres(loadEnv().DATABASE_URL);
+  ? postgres(withSearchPath(dbUrl, schema))
+  : underTest
+    ? postgres(withSearchPath(dbUrl, "shaadi_no_test_schema_configured", false))
+    : postgres(dbUrl);
 
 export interface MatchResult {
   photoId: string;
