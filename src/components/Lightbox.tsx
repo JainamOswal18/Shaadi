@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 import type { SearchResponse } from "@/lib/types";
-import { downloadUrl } from "@/lib/api";
+import { downloadOrSharePhoto } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Photo = SearchResponse["matches"][number];
@@ -22,7 +23,21 @@ export function Lightbox({
   const closeRef = useRef<HTMLButtonElement>(null);
   const touchStartX = useRef<number | null>(null);
   const [slideDir, setSlideDir] = useState<"l" | "r" | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const photo = photos[index];
+
+  async function handleDownload() {
+    if (!photo || downloading) return;
+    setDownloading(true);
+    try {
+      const how = await downloadOrSharePhoto(photo.photoId);
+      if (how === "downloaded") toast.success("Saved to your device");
+    } catch {
+      toast.error("Couldn't download this photo", { description: "Please try again." });
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   const go = useCallback(
     (delta: number) => {
@@ -74,20 +89,28 @@ export function Lightbox({
           {index + 1} / {photos.length}
         </span>
         <div className="flex items-center gap-2">
-          {/* Plain navigation to the download API: it 302-redirects to a
-              presigned R2 URL whose Content-Disposition forces the save. The
-              browser follows the redirect itself, so there is no cross-origin
-              fetch (no R2 CORS requirement) and the file never buffers in the
-              tab. `download` hints a filename for the same-origin hop; the
-              presigned response's own filename wins for the R2 hop. */}
-          <a
-            href={downloadUrl(photo.photoId)}
-            download={`${photo.photoId}.jpg`}
+          {/* Fetches the full-quality original same-origin, then hands it to the
+              native share sheet (Save Image → camera roll) on mobile, or a plain
+              download elsewhere. The spinner covers the fetch so the button
+              isn't "dead" for the few seconds R2 takes to respond. */}
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={downloading}
+            aria-busy={downloading}
             data-testid="download-original"
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-marigold-deep px-4 text-sm font-medium text-white transition-colors hover:bg-marigold focus-visible:ring-3 focus-visible:ring-cream/50 focus-visible:outline-none"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-marigold-deep px-4 text-sm font-medium text-white transition-colors hover:bg-marigold focus-visible:ring-3 focus-visible:ring-cream/50 focus-visible:outline-none disabled:opacity-70"
           >
-            <Download className="size-5" /> <span className="hidden sm:inline">Download</span> original
-          </a>
+            {downloading ? (
+              <>
+                <Loader2 className="size-5 animate-spin" /> Saving&hellip;
+              </>
+            ) : (
+              <>
+                <Download className="size-5" /> <span className="hidden sm:inline">Save</span> photo
+              </>
+            )}
+          </button>
           <button
             ref={closeRef}
             type="button"

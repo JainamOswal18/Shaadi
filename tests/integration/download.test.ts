@@ -146,7 +146,10 @@ beforeEach(() => {
 });
 
 describe("download routes (integration, isolated schema)", () => {
-  it("GET /api/download?photoId= streams a compressed JPEG of the original", async () => {
+  it("GET /api/download?photoId= streams the full-quality original same-origin", async () => {
+    // Single-photo download serves the untouched original THROUGH the function
+    // (200, same-origin) — no compression, no redirect — so the client can read
+    // the bytes for the share sheet.
     const req = new Request(`http://localhost/api/download?photoId=${photo1.id}`, {
       headers: IP_HEADERS,
     });
@@ -155,31 +158,13 @@ describe("download routes (integration, isolated schema)", () => {
     expect(res.headers.get("content-type")).toBe("image/jpeg");
     expect(res.headers.get("content-disposition")).toContain(`${photo1.id}.jpg`);
 
-    // Body is a valid JPEG, re-encoded and downsized to the 3072px edge cap.
+    // Body is the untouched original (identical bytes, no re-encode).
     const out = Buffer.from(await res.arrayBuffer());
-    const meta = await sharp(out).metadata();
-    expect(meta.format).toBe("jpeg");
-    expect(Math.max(meta.width ?? 0, meta.height ?? 0)).toBeLessThanOrEqual(3072);
-    expect(out.length).toBeLessThan(realJpeg.length); // smaller than the 4000×3000 original
+    expect(out.equals(realJpeg)).toBe(true);
 
     const rows = await sql`select kind, photo_id from download_events where kind = 'single'`;
     expect(rows).toHaveLength(1);
     expect(rows[0].photo_id).toBe(photo1.id);
-  });
-
-  it("GET /api/download falls back to a 302 presigned original when it can't decode", async () => {
-    // An undecodable original (not a real image) must not fail the download —
-    // the route falls back to a presigned redirect to the untouched file.
-    s3mock.reset();
-    s3mock.on(GetObjectCommand).callsFake(() => ({
-      Body: Readable.from(Buffer.from("not-an-image")),
-    }));
-    const req = new Request(`http://localhost/api/download?photoId=${photo1.id}`, {
-      headers: IP_HEADERS,
-    });
-    const res = await downloadGET(req);
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location") ?? "").toContain(photo1.original_key);
   });
 
   it("GET /api/download for an unknown photo returns 404", async () => {

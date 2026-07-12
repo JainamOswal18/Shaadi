@@ -35,3 +35,21 @@ test("results: grid renders 5 thumbs, lightbox opens, download-all fires zip req
   ]);
   expect(download.suggestedFilename()).toMatch(/\.zip$/);
 });
+
+test("results: single-photo 'Save photo' fetches the original and saves it", async ({
+  page,
+}) => {
+  await reachResults(page);
+
+  // Open the lightbox and trigger the single-photo save. On desktop (no file
+  // share support) this falls back to a normal download, which fires a
+  // "download" event we can assert on.
+  await page.getByTestId("photo-thumb").first().click();
+  await expect(page.getByTestId("lightbox-image")).toBeVisible();
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByTestId("download-original").click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.jpg$/);
+});

@@ -1,12 +1,22 @@
+import { Readable } from "node:stream";
 import { getPhotoOriginal, getSettings, logDownload } from "@/lib/db";
-import { compressForDownload } from "@/lib/previews";
-import { getObjectBuffer, presignGet } from "@/lib/r2";
+import { getObjectStream } from "@/lib/r2";
 
-// Node runtime: sharp re-encoding, the AWS S3 client, and the postgres driver
-// all require Node — none run on the edge runtime.
+// Node runtime: streaming from the AWS S3 client + the postgres driver both
+// require Node — neither runs on the edge runtime.
 export const runtime = "nodejs";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const CONTENT_TYPE: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  heic: "image/heic",
+  heif: "image/heif",
+};
 
 /** Lower-cased file extension of an R2 key, or "jpg" as a safe default. */
 function extOf(key: string): string {
@@ -30,14 +40,14 @@ function clientIp(req: Request): string | null {
 }
 
 /**
- * GET /api/download?photoId= — download a single photo.
+ * GET /api/download?photoId= — download a single photo at FULL/original quality.
  *
- * Serves a re-encoded ("Balanced") copy of the original: full-quality-looking
- * but much smaller. The original is fetched from private R2, compressed with
- * sharp, and streamed back as an attachment JPEG. If the original can't be
- * decoded (e.g. a HEIC this runtime's sharp can't read), we fall back to a
- * presigned 302 redirect to the untouched original so the download never fails.
- * Logs a `single` download event for audit either way.
+ * Streams the untouched original straight from private R2 THROUGH this function
+ * (same-origin) rather than 302-redirecting to R2. Same-origin matters: it lets
+ * the client read the bytes with a plain fetch (no cross-origin CORS), which is
+ * what powers the in-app loading state and the "save to gallery" share sheet on
+ * mobile. `Content-Length` is set when known so the browser can show progress.
+ * Logs a `single` download event for audit.
  */
 export async function GET(req: Request): Promise<Response> {
   // Maintenance kill switch: refuse downloads.
@@ -55,25 +65,17 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({ error: "not_found" }, { status: 404 });
   }
 
+  const ext = extOf(photo.original_key);
+  const stream = await getObjectStream(photo.original_key);
+
   await logDownload({ kind: "single", photoId, ip: clientIp(req) });
 
-  try {
-    const original = await getObjectBuffer(photo.original_key);
-    const compressed = await compressForDownload(original);
-    return new Response(compressed as unknown as BodyInit, {
-      headers: {
-        "Content-Type": "image/jpeg",
-        "Content-Disposition": `attachment; filename="${photoId}.jpg"`,
-      },
-    });
-  } catch (err) {
-    // Undecodable original (or a transient fetch failure): fall back to the
-    // untouched original via a presigned redirect rather than erroring.
-    console.error(`download: compression fell back to original for ${photoId}:`, err);
-    const signed = await presignGet(photo.original_key, {
-      download: true,
-      filename: `${photoId}.${extOf(photo.original_key)}`,
-    });
-    return Response.redirect(signed, 302);
-  }
+  const headers: Record<string, string> = {
+    "Content-Type": CONTENT_TYPE[ext] ?? "application/octet-stream",
+    "Content-Disposition": `attachment; filename="${photoId}.${ext}"`,
+    "Cache-Control": "private, max-age=3600",
+  };
+  if (photo.bytes && photo.bytes > 0) headers["Content-Length"] = String(photo.bytes);
+
+  return new Response(Readable.toWeb(stream) as unknown as ReadableStream, { headers });
 }

@@ -83,22 +83,38 @@ function ResultsInner() {
   async function downloadAll() {
     if (!sid || zipping) return;
     setZipping(true);
+    // Zipping originals server-side takes a while with no browser progress bar,
+    // so tell the guest something is happening (the button also shows a spinner).
+    const preparing = toast.loading("Preparing your album ZIP…", {
+      description: "This can take a moment for large albums.",
+    });
     try {
       await saveFromApi(downloadZipUrl(sid), `shaadi-${sid}.zip`);
-      toast.success("Your album is downloading");
+      toast.success("Your album is downloading", { id: preparing });
     } catch (err) {
       // The ZIP route returns a JSON control signal (not a file) for oversized
       // selections and rate-limited callers; saveFromApi surfaces those as a
       // typed ApiError with a machine-readable `code` instead of saving JSON.
       if (err instanceof ApiError && err.code === "prepare") {
         // Too large for one ZIP — offer the part-by-part download instead.
+        toast.dismiss(preparing);
         setPartsOpen(true);
       } else if (err instanceof ApiError && err.code === "rate_limited") {
         toast.error("Too many downloads right now", {
+          id: preparing,
           description: "Please wait a minute and try again.",
         });
+      } else if (err instanceof ApiError && (err.status === 404 || err.code === "not_found")) {
+        // The session row is gone (expired/cleared) — the guest needs a fresh search.
+        toast.error("This search has expired", {
+          id: preparing,
+          description: "Please take a new selfie to download your photos again.",
+        });
       } else {
-        toast.error("Couldn't prepare the download", { description: "Please try again." });
+        toast.error("Couldn't prepare the download", {
+          id: preparing,
+          description: "Please try again.",
+        });
       }
     } finally {
       setZipping(false);

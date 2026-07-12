@@ -81,6 +81,56 @@ export function downloadUrl(photoId: string) {
   return `/api/download?photoId=${encodeURIComponent(photoId)}`;
 }
 
+/** Trigger a browser "save" of an in-memory blob under `filename`. */
+function saveBlob(blob: Blob, filename: string): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+/**
+ * Download a single photo at full quality. Fetches the bytes same-origin, then:
+ *  - on mobile (Web Share w/ files) opens the native share sheet, whose "Save
+ *    Image" lands the photo in the camera roll / Photos — a plain download only
+ *    goes to Files on iOS, which is the "it doesn't reach my gallery" problem.
+ *  - otherwise falls back to a normal file download.
+ * Returns how it was delivered so the caller can tailor its confirmation.
+ * Throws `ApiError` on a failed fetch; a user-cancelled share is NOT an error.
+ */
+export async function downloadOrSharePhoto(photoId: string): Promise<"shared" | "downloaded"> {
+  const res = await fetch(downloadUrl(photoId));
+  if (!res.ok) {
+    const code = (await res.json().catch(() => ({}))).error as string | undefined;
+    throw new ApiError(res.status, code ?? "Download failed", code);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const filename = disposition.match(/filename="?([^"]+)"?/)?.[1] ?? `${photoId}.jpg`;
+  const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
+
+  // Prefer the share sheet when the platform can share files (mobile).
+  const nav = navigator as Navigator & {
+    canShare?: (data?: ShareData) => boolean;
+  };
+  if (typeof nav.canShare === "function" && nav.canShare({ files: [file] })) {
+    try {
+      await nav.share({ files: [file] });
+      return "shared";
+    } catch (err) {
+      // User dismissed the sheet — done, don't fall through to a download.
+      if (err instanceof DOMException && err.name === "AbortError") return "shared";
+      // Any other share failure: fall back to a plain download.
+    }
+  }
+  saveBlob(blob, filename);
+  return "downloaded";
+}
+
 /**
  * URL for the album ZIP. With no range it zips the whole matched set (subject to
  * the route's size cap). Pass `start`/`count` to zip one slice — used by the
