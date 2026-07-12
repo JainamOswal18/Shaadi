@@ -6,6 +6,7 @@ import {
   motion,
   useReducedMotion,
   type PanInfo,
+  type Variants,
 } from "framer-motion";
 import { ArrowRight, X } from "lucide-react";
 import { Garland } from "@/components/Garland";
@@ -37,10 +38,10 @@ const PANELS: Panel[] = [
     eyebrow: "The Wedding Issue · 2026",
     title: (
       <>
-        Nameeta <span className="italic text-marigold-deep">ki</span> Shaadi
+        Nameeta <span className="italic text-marigold-deep">weds</span> Jeenendra
       </>
     ),
-    kicker: "Nameeta weds Jeenendra",
+    kicker: "two hearts, one beginning",
     body: "We've kept your moments safe — let me share them with you.",
   },
   {
@@ -112,6 +113,17 @@ export function MagazineIntro({ onDone }: { onDone: () => void }) {
   const panel = PANELS[index];
   const distance = reduce ? 0 : 48;
 
+  const container: Variants = {
+    hidden: {},
+    show: reduce ? {} : { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
+  };
+  const item: Variants = reduce
+    ? { hidden: { opacity: 1 }, show: { opacity: 1 } }
+    : {
+        hidden: { opacity: 0, y: 18 },
+        show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+      };
+
   return (
     <motion.div
       role="dialog"
@@ -126,6 +138,30 @@ export function MagazineIntro({ onDone }: { onDone: () => void }) {
       {/* Ambient marigold wash sits under a gold invitation frame */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_-10%,color-mix(in_oklch,var(--marigold),transparent_78%),transparent_60%)]" />
 
+      {/* Ambient petals + hearts drifting down; disabled under reduced motion */}
+      {!reduce && (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          {Array.from({ length: 18 }).map((_, i) => {
+            const left = (i * 53) % 100;
+            const delay = (i % 6) * 0.4;
+            const dur = 4 + (i % 5);
+            const isHeart = i % 4 === 0;
+            return (
+              <motion.span
+                key={i}
+                className={cn("absolute -top-6 text-marigold", isHeart && "text-rose")}
+                style={{ left: `${left}%` }}
+                initial={{ y: -20, opacity: 0, rotate: 0 }}
+                animate={{ y: "110vh", opacity: [0, 0.9, 0], rotate: 320 }}
+                transition={{ duration: dur, delay, repeat: Infinity, ease: "easeIn" }}
+              >
+                {isHeart ? "♥" : "❀"}
+              </motion.span>
+            );
+          })}
+        </div>
+      )}
+
       <div
         className="relative mx-auto flex h-[100dvh] w-full max-w-md flex-col px-6"
         style={{
@@ -136,7 +172,7 @@ export function MagazineIntro({ onDone }: { onDone: () => void }) {
         {/* Top bar: masthead + Skip */}
         <div className="flex items-center justify-between">
           <span className="font-heading text-lg font-semibold italic text-maroon">
-            Shaadi<span className="text-marigold-deep not-italic">.</span>
+            Jeena<span className="text-marigold-deep not-italic">.</span>
           </span>
           <button
             type="button"
@@ -170,25 +206,46 @@ export function MagazineIntro({ onDone }: { onDone: () => void }) {
                   transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                   className="flex w-full flex-col items-center"
                 >
-                  <p className="text-[0.7rem] font-medium uppercase tracking-[0.24em] text-marigold-deep">
-                    {panel.eyebrow}
-                  </p>
+                  <motion.div
+                    variants={container}
+                    initial="hidden"
+                    animate="show"
+                    className="flex w-full flex-col items-center"
+                  >
+                    <motion.p
+                      variants={item}
+                      className="text-[0.7rem] font-medium uppercase tracking-[0.24em] text-marigold-deep"
+                    >
+                      {panel.eyebrow}
+                    </motion.p>
 
-                  <Garland count={9} className="mt-4 max-w-[16rem]" />
+                    <motion.div variants={item}>
+                      <Garland count={9} className="mt-4 max-w-[16rem]" />
+                    </motion.div>
 
-                  <h1 className="mt-5 text-balance font-heading text-[2.4rem] font-semibold leading-[1.05] text-maroon sm:text-[2.75rem]">
-                    {panel.title}
-                  </h1>
+                    <motion.h1
+                      variants={item}
+                      className="mt-5 text-balance font-heading text-[2.4rem] font-semibold leading-[1.05] text-maroon sm:text-[2.75rem]"
+                    >
+                      {panel.title}
+                    </motion.h1>
 
-                  {panel.kicker && (
-                    <p className="mt-3 font-[family-name:var(--font-devanagari)] text-base text-marigold-deep/90">
-                      {panel.kicker}
-                    </p>
-                  )}
+                    {panel.kicker && (
+                      <motion.p
+                        variants={item}
+                        className="mt-3 font-heading text-base italic text-rose"
+                      >
+                        {panel.kicker}
+                      </motion.p>
+                    )}
 
-                  <p className="mx-auto mt-4 max-w-xs text-pretty text-[15px] leading-relaxed text-muted-foreground">
-                    {panel.body}
-                  </p>
+                    <motion.p
+                      variants={item}
+                      className="mx-auto mt-4 max-w-xs text-pretty text-[15px] leading-relaxed text-muted-foreground"
+                    >
+                      {panel.body}
+                    </motion.p>
+                  </motion.div>
                 </motion.div>
               </AnimatePresence>
             </motion.div>
