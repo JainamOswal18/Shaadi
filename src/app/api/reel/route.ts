@@ -6,8 +6,9 @@ import {
   insertReelJob,
   setReelJobStatus,
 } from "@/lib/db";
+import { loadEnv } from "@/lib/env";
 import { previewUrl, presignGet } from "@/lib/r2";
-import { checkRateLimit } from "@/lib/ratelimit";
+import { checkReelRateLimit } from "@/lib/ratelimit";
 import { aspectDimensions, ReelSpecSchema, songById, splitDurations } from "@/lib/reel";
 import { dispatchReel } from "@/lib/reel-client";
 import type { CreateReelResponse, ReelStatusResponse } from "@/lib/types";
@@ -32,8 +33,15 @@ function clientIp(req: Request): string | null {
 }
 
 /** App origin as seen by an external caller — used to build public audio URLs
- *  and the render callback URL the EC2 box will hit. */
+ *  and the render callback URL the EC2 box will hit. Prefers the pinned
+ *  `APP_ORIGIN` env var when set: the render box is a caller of this app, so
+ *  deriving the origin from the request's Host/X-Forwarded-Host header would
+ *  let a spoofed header redirect the callback/audio URLs to an attacker's
+ *  origin (SSRF). Falls back to the request-derived origin so local/dev keeps
+ *  working without APP_ORIGIN configured. */
 function appOrigin(req: Request): string {
+  const pinned = loadEnv().APP_ORIGIN;
+  if (pinned) return pinned;
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
   return `${proto}://${host}`;
@@ -50,7 +58,7 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "maintenance" }, { status: 503 });
   }
   const ip = clientIp(req);
-  if (!(await checkRateLimit(ip))) {
+  if (!(await checkReelRateLimit(ip))) {
     return Response.json({ error: "rate_limited" }, { status: 429 });
   }
 
@@ -77,7 +85,8 @@ export async function POST(req: Request): Promise<Response> {
   const song = songById(spec.song.id);
   const audioUrl = song && song.src ? `${appOrigin(req)}${song.src}` : null;
 
-  const { id: jobId } = await insertReelJob({ spec, ip, guestName: null });
+  const guestName = spec.guestName?.trim() || null;
+  const { id: jobId } = await insertReelJob({ spec, ip, guestName });
   const outputKey = `reels/${jobId}.mp4`;
 
   try {

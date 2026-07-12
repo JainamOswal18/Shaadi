@@ -25,6 +25,7 @@ const s3mock = mockClient(S3Client as unknown as new (...args: unknown[]) => S3C
 // Loaded fresh in beforeAll, after DB_SCHEMA is set.
 let sql: typeof import("@/lib/db").sql;
 let insertPhoto: typeof import("@/lib/db").insertPhoto;
+let insertReelJob: typeof import("@/lib/db").insertReelJob;
 let getReelJob: typeof import("@/lib/db").getReelJob;
 let setReelJobStatus: typeof import("@/lib/db").setReelJobStatus;
 let updateSettings: typeof import("@/lib/db").updateSettings;
@@ -55,10 +56,10 @@ function validSpec(photoIds: string[]) {
   };
 }
 
-function postReq(body: unknown): Request {
+function postReq(body: unknown, headers?: Record<string, string>): Request {
   return new Request("http://localhost/api/reel", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
 }
@@ -79,6 +80,7 @@ beforeAll(async () => {
   const db = await import("@/lib/db");
   sql = db.sql;
   insertPhoto = db.insertPhoto;
+  insertReelJob = db.insertReelJob;
   getReelJob = db.getReelJob;
   setReelJobStatus = db.setReelJobStatus;
   updateSettings = db.updateSettings;
@@ -171,6 +173,24 @@ describe("POST /api/reel (integration, isolated schema)", () => {
 
     const job = await getReelJob(body.jobId);
     expect(job?.status).toBe("rendering");
+  });
+
+  it("threads guestName from the request body into the reel_jobs row", async () => {
+    const res = await POST(postReq({ ...validSpec([photoId1]), guestName: "Priya" }));
+    const { jobId } = (await res.json()) as { jobId: string };
+
+    const rows = await sql<{ guest_name: string | null }[]>`
+      select guest_name from reel_jobs where id = ${jobId}`;
+    expect(rows[0]?.guest_name).toBe("Priya");
+  });
+
+  it("stores a null guestName when the field is omitted/blank", async () => {
+    const res = await POST(postReq({ ...validSpec([photoId1]), guestName: "  " }));
+    const { jobId } = (await res.json()) as { jobId: string };
+
+    const rows = await sql<{ guest_name: string | null }[]>`
+      select guest_name from reel_jobs where id = ${jobId}`;
+    expect(rows[0]?.guest_name).toBeNull();
   });
 
   it("dispatch failure: 502 {error} and the job row is marked error", async () => {
@@ -292,5 +312,76 @@ describe("POST /api/reel/callback (integration, isolated schema)", () => {
     const job = await getReelJob(jobId);
     expect(job?.status).toBe("error");
     expect(job?.error).toBe("ffmpeg exited 1");
+  });
+});
+
+describe("POST /api/reel — dedicated reel rate limit (integration, isolated schema)", () => {
+  // A distinct IP per describe block so these counts never collide with rows
+  // created by the other tests above (which mostly leave `ip` null).
+  const RATE_LIMIT_IP = "203.0.113.50";
+
+  afterEach(async () => {
+    await sql`delete from reel_jobs where ip = ${RATE_LIMIT_IP}`;
+  });
+
+  it("allows a request when the IP is under the cap (5 per 10 minutes)", async () => {
+    for (let i = 0; i < 4; i++) {
+      await insertReelJob({ spec: validSpec([photoId1]), ip: RATE_LIMIT_IP });
+    }
+    const res = await POST(
+      postReq(validSpec([photoId1]), { "x-forwarded-for": RATE_LIMIT_IP }),
+    );
+    expect(res.status).toBe(202);
+  });
+
+  it("returns 429 once the IP is at the cap, and never dispatches a render", async () => {
+    for (let i = 0; i < 5; i++) {
+      await insertReelJob({ spec: validSpec([photoId1]), ip: RATE_LIMIT_IP });
+    }
+    dispatchReel.mockClear();
+    const res = await POST(
+      postReq(validSpec([photoId1]), { "x-forwarded-for": RATE_LIMIT_IP }),
+    );
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({ error: "rate_limited" });
+    expect(dispatchReel).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/reel — APP_ORIGIN pinning (integration, isolated schema)", () => {
+  afterEach(() => {
+    delete process.env.APP_ORIGIN;
+  });
+
+  it("uses the pinned APP_ORIGIN for the callback URL, ignoring a spoofed Host header", async () => {
+    process.env.APP_ORIGIN = "https://pinned.example.com";
+    vi.resetModules();
+
+    const reelClient = await import("@/lib/reel-client");
+    const freshDispatch = reelClient.dispatchReel as unknown as ReturnType<typeof vi.fn>;
+    freshDispatch.mockReset();
+    freshDispatch.mockResolvedValue(undefined);
+
+    const freshDb = await import("@/lib/db");
+    const freshPOST = (await import("@/app/api/reel/route")).POST;
+
+    const req = new Request("http://localhost/api/reel", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        host: "evil.attacker.example",
+        "x-forwarded-host": "evil.attacker.example",
+        "x-forwarded-proto": "https",
+      },
+      body: JSON.stringify(validSpec([photoId1])),
+    });
+
+    const res = await freshPOST(req);
+    expect(res.status).toBe(202);
+    expect(freshDispatch).toHaveBeenCalledTimes(1);
+    const payload = freshDispatch.mock.calls[0][0];
+    expect(payload.callbackUrl).toBe("https://pinned.example.com/api/reel/callback");
+
+    await freshDb.sql.end();
   });
 });
