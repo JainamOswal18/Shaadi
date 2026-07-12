@@ -72,3 +72,18 @@ describe("CollageMaker per-slot pan/zoom", () => {
     expect(img.style.transform).not.toBe("scale(1) translate(0%, 0%)");
   });
 });
+
+describe("CollageMaker motifs and font style", () => {
+  it("offers 5 background motifs including phera and doli", () => {
+    render(<CollageMaker photos={photos} onClose={() => {}} />);
+    expect(screen.getByRole("button", { name: "Phera" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Doli" })).toBeInTheDocument();
+  });
+
+  it("switches caption font style and marks the button pressed", () => {
+    render(<CollageMaker photos={photos} onClose={() => {}} />);
+    const scriptBtn = screen.getByRole("button", { name: "Script" });
+    fireEvent.click(scriptBtn);
+    expect(scriptBtn).toHaveAttribute("aria-pressed", "true");
+  });
+});

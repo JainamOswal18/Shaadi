@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { requestUploadUrls, putToR2, uploadComplete } from "@/lib/api";
+import { StickerMotif } from "@/components/collage/StickerMotif";
 import {
   RATIOS,
   DEFAULT_STYLE,
   DEFAULT_SLOT_TRANSFORM,
+  FONT_STYLES,
   MOTIFS,
   PRESETS,
   THEMES,
@@ -39,29 +41,6 @@ function resolveVar(ref: string): string {
   if (!m || typeof window === "undefined") return ref;
   const v = getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim();
   return v || ref;
-}
-
-/** A crisp little genda-phool garland drawn with concrete colours. */
-function CanvasGarland({ thread, petal, core }: { thread: string; petal: string; core: string }) {
-  const count = 11;
-  const width = 1000;
-  const gap = width / (count - 1);
-  return (
-    <svg viewBox={`0 0 ${width} 40`} width="100%" height="40" aria-hidden>
-      <path d={`M0 10 Q ${width / 2} 30 ${width} 10`} fill="none" stroke={thread} strokeWidth="3" />
-      {Array.from({ length: count }, (_, i) => {
-        const x = i * gap;
-        const y = i % 2 === 0 ? 24 : 20;
-        const r = i % 2 === 0 ? 12 : 10;
-        return (
-          <g key={i} transform={`translate(${x} ${y})`}>
-            <circle r={r} fill={petal} />
-            <circle r={r * 0.4} fill={core} />
-          </g>
-        );
-      })}
-    </svg>
-  );
 }
 
 /** The 1080×1080 export node. Rendered at full size; the editor scales a
@@ -257,7 +236,11 @@ function CollageCanvas({
     );
   }
 
-  const showGarland = style.motif === "garland";
+  const stickerId =
+    style.motif === "garland" || style.motif === "phera" || style.motif === "doli"
+      ? style.motif
+      : null;
+  const font = FONT_STYLES.find((f) => f.id === style.fontStyle) ?? FONT_STYLES[0];
 
   return (
     <div
@@ -287,8 +270,10 @@ function CollageCanvas({
       )}
 
       <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", gap: 22, minHeight: 0 }}>
-        {showGarland && (
-          <CanvasGarland thread={theme.frame} petal={theme.accent} core={theme.ink} />
+        {stickerId && (
+          <div style={{ position: "absolute", top: 16, right: 16 }}>
+            <StickerMotif id={stickerId} color={theme.accent} />
+          </div>
         )}
         <div style={{ flex: 1, minHeight: 0 }}>{photoArea}</div>
 
@@ -296,8 +281,9 @@ function CollageCanvas({
           {style.caption.trim() && (
             <div
               style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                fontWeight: 600,
+                fontFamily: font.family,
+                fontWeight: font.weight,
+                fontStyle: font.italic ? "italic" : "normal",
                 fontSize: 52,
                 lineHeight: 1.05,
                 letterSpacing: "-0.01em",
@@ -754,6 +740,34 @@ export function CollageMaker({
                 onChange={(e) => set("hashtag", e.target.value)}
                 placeholder="#SaatPhere"
               />
+            </div>
+          </section>
+
+          {/* Font */}
+          <section className="mt-6">
+            <p className="mb-2 text-sm font-medium text-foreground">Caption style</p>
+            <div className="flex gap-2">
+              {FONT_STYLES.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  aria-pressed={style.fontStyle === f.id}
+                  onClick={() => set("fontStyle", f.id)}
+                  style={{
+                    fontFamily: f.family,
+                    fontWeight: f.weight,
+                    fontStyle: f.italic ? "italic" : "normal",
+                  }}
+                  className={cn(
+                    "min-h-11 flex-1 rounded-xl border px-2 py-2 text-sm transition-colors",
+                    style.fontStyle === f.id
+                      ? "border-marigold-deep bg-accent text-maroon"
+                      : "border-border bg-card text-muted-foreground hover:border-marigold/60",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           </section>
         </div>
