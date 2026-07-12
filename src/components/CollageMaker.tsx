@@ -10,16 +10,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { requestUploadUrls, putToR2, uploadComplete } from "@/lib/api";
+import { StickerMotif } from "@/components/collage/StickerMotif";
 import {
-  CANVAS_SIZE,
+  RATIOS,
   DEFAULT_STYLE,
-  LAYOUTS,
+  DEFAULT_SLOT_TRANSFORM,
+  FONT_STYLES,
+  HEART_CLIP_PATH,
   MOTIFS,
   PRESETS,
   THEMES,
+  canvasSizeFor,
+  clampSlotTransform,
+  layoutsForRatio,
   layoutById,
+  pinchScale,
+  pointerDistance,
+  slotTransformToCss,
   themeById,
   type CollageStyle,
+  type SlotTransform,
 } from "@/lib/collage";
 import { cn } from "@/lib/utils";
 
@@ -36,40 +46,28 @@ function resolveVar(ref: string): string {
   return v || ref;
 }
 
-/** A crisp little genda-phool garland drawn with concrete colours. */
-function CanvasGarland({ thread, petal, core }: { thread: string; petal: string; core: string }) {
-  const count = 11;
-  const width = 1000;
-  const gap = width / (count - 1);
-  return (
-    <svg viewBox={`0 0 ${width} 40`} width="100%" height="40" aria-hidden>
-      <path d={`M0 10 Q ${width / 2} 30 ${width} 10`} fill="none" stroke={thread} strokeWidth="3" />
-      {Array.from({ length: count }, (_, i) => {
-        const x = i * gap;
-        const y = i % 2 === 0 ? 24 : 20;
-        const r = i % 2 === 0 ? 12 : 10;
-        return (
-          <g key={i} transform={`translate(${x} ${y})`}>
-            <circle r={r} fill={petal} />
-            <circle r={r * 0.4} fill={core} />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
 /** The 1080×1080 export node. Rendered at full size; the editor scales a
  * wrapper down for on-screen preview while html-to-image captures this node. */
 function CollageCanvas({
   nodeRef,
   photos,
   style,
+  transforms,
+  onSlotWheel,
+  onSlotPointerDown,
+  onSlotPointerMove,
+  onSlotPointerUp,
 }: {
   nodeRef: React.Ref<HTMLDivElement>;
   photos: Photo[];
   style: CollageStyle;
+  transforms: Record<number, SlotTransform>;
+  onSlotWheel: (i: number, e: React.WheelEvent) => void;
+  onSlotPointerDown: (i: number, e: React.PointerEvent) => void;
+  onSlotPointerMove: (e: React.PointerEvent) => void;
+  onSlotPointerUp: (e: React.PointerEvent) => void;
 }) {
+  const size = canvasSizeFor(style.ratioId);
   const layout = layoutById(style.layoutId);
   const t = themeById(style.themeId);
   const theme: ResolvedTheme = {
@@ -83,17 +81,42 @@ function CollageCanvas({
     ? Array.from({ length: cap }, (_, i) => photos[i % photos.length])
     : [];
 
-  const img = (p: Photo, key: number) => (
+  const slotProps = (i: number) => ({
+    "data-testid": `collage-slot-${i}`,
+    onWheel: (e: React.WheelEvent) => onSlotWheel(i, e),
+    onPointerDown: (e: React.PointerEvent) => onSlotPointerDown(i, e),
+    onPointerMove: onSlotPointerMove,
+    onPointerUp: onSlotPointerUp,
+    onPointerCancel: onSlotPointerUp,
+  });
+
+  const slotTransform = (i: number) => transforms[i] ?? DEFAULT_SLOT_TRANSFORM;
+
+  const img = (p: Photo, i: number) => (
     <div
-      key={key}
-      style={{ overflow: "hidden", borderRadius: style.radius, background: theme.frame }}
+      key={i}
+      {...slotProps(i)}
+      style={{
+        overflow: "hidden",
+        borderRadius: style.radius,
+        background: theme.frame,
+        touchAction: "none",
+      }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={p.previewUrl}
         alt=""
+        role="img"
         crossOrigin="anonymous"
-        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          display: "block",
+          transform: slotTransformToCss(slotTransform(i)),
+          transformOrigin: "center",
+        }}
       />
     </div>
   );
@@ -114,12 +137,14 @@ function CollageCanvas({
         {layout.cells!.map((c, i) => (
           <div
             key={i}
+            {...slotProps(i)}
             style={{
               gridColumn: `${c.col} / span ${c.colSpan}`,
               gridRow: `${c.row} / span ${c.rowSpan}`,
               overflow: "hidden",
               borderRadius: style.radius,
               background: theme.frame,
+              touchAction: "none",
             }}
           >
             {slots[i] && (
@@ -127,8 +152,16 @@ function CollageCanvas({
               <img
                 src={slots[i].previewUrl}
                 alt=""
+                role="img"
                 crossOrigin="anonymous"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                  transform: slotTransformToCss(slotTransform(i)),
+                  transformOrigin: "center",
+                }}
               />
             )}
           </div>
@@ -155,17 +188,92 @@ function CollageCanvas({
               boxShadow: "0 18px 40px -12px rgba(60,20,20,0.45)",
             }}
           >
-            <div style={{ overflow: "hidden", borderRadius: 2, aspectRatio: "1 / 1", background: theme.frame }}>
+            <div
+              {...slotProps(i)}
+              style={{
+                overflow: "hidden",
+                borderRadius: 2,
+                aspectRatio: "1 / 1",
+                background: theme.frame,
+                touchAction: "none",
+              }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={p.previewUrl}
                 alt=""
+                role="img"
                 crossOrigin="anonymous"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                  transform: slotTransformToCss(slotTransform(i)),
+                  transformOrigin: "center",
+                }}
               />
             </div>
           </div>
         ))}
+      </div>
+    );
+  } else if (layout.kind === "heart") {
+    // Heart-mosaic: a fixed 2-col/3-row grid of 5 photos, clipped to a heart
+    // outline so the *collage* reads as heart-shaped (not a per-photo mask).
+    const heartCells = [0, 1, 2, 3, 4];
+    photoArea = (
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          clipPath: HEART_CLIP_PATH,
+          WebkitClipPath: HEART_CLIP_PATH,
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gridTemplateRows: "repeat(3, 1fr)",
+            gap: style.border,
+            width: "100%",
+            height: "100%",
+            background: theme.frame,
+          }}
+        >
+          {heartCells.map((i) => (
+            <div
+              key={i}
+              {...slotProps(i)}
+              style={{
+                gridColumn: i === 4 ? "1 / span 2" : undefined,
+                overflow: "hidden",
+                background: theme.frame,
+                touchAction: "none",
+              }}
+            >
+              {slots[i] && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={slots[i].previewUrl}
+                  alt=""
+                  role="img"
+                  crossOrigin="anonymous"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                    transform: slotTransformToCss(slotTransform(i)),
+                    transformOrigin: "center",
+                  }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     );
   } else {
@@ -190,14 +298,18 @@ function CollageCanvas({
     );
   }
 
-  const showGarland = style.motif === "garland";
+  const stickerId =
+    style.motif === "garland" || style.motif === "phera" || style.motif === "doli"
+      ? style.motif
+      : null;
+  const font = FONT_STYLES.find((f) => f.id === style.fontStyle) ?? FONT_STYLES[0];
 
   return (
     <div
       ref={nodeRef}
       style={{
-        width: CANVAS_SIZE,
-        height: CANVAS_SIZE,
+        width: size.width,
+        height: size.height,
         background: theme.bg,
         position: "relative",
         display: "flex",
@@ -220,8 +332,10 @@ function CollageCanvas({
       )}
 
       <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", gap: 22, minHeight: 0 }}>
-        {showGarland && (
-          <CanvasGarland thread={theme.frame} petal={theme.accent} core={theme.ink} />
+        {stickerId && (
+          <div style={{ position: "absolute", top: 16, right: 16 }}>
+            <StickerMotif id={stickerId} color={theme.accent} />
+          </div>
         )}
         <div style={{ flex: 1, minHeight: 0 }}>{photoArea}</div>
 
@@ -229,8 +343,9 @@ function CollageCanvas({
           {style.caption.trim() && (
             <div
               style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                fontWeight: 600,
+                fontFamily: font.family,
+                fontWeight: font.weight,
+                fontStyle: font.italic ? "italic" : "normal",
                 fontSize: 52,
                 lineHeight: 1.05,
                 letterSpacing: "-0.01em",
@@ -262,11 +377,121 @@ export function CollageMaker({
   const [style, setStyle] = useState<CollageStyle>(DEFAULT_STYLE);
   const [previewW, setPreviewW] = useState(320);
   const [busy, setBusy] = useState<null | "download" | "share" | "gallery">(null);
+  const [transforms, setTransforms] = useState<Record<number, SlotTransform>>({});
+  const [activeSlot, setActiveSlot] = useState(0);
   const nodeRef = useRef<HTMLDivElement>(null);
   const previewWrapRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{
+    slot: number;
+    startX: number;
+    startY: number;
+    base: SlotTransform;
+  } | null>(null);
+  // Every pointer currently down on any slot, keyed by pointerId — lets us
+  // detect a same-slot 2-finger pinch without a separate touch-events path.
+  const pointersRef = useRef<Map<number, { slot: number; x: number; y: number }>>(new Map());
+  const pinchState = useRef<{ slot: number; startDist: number; baseScale: number } | null>(null);
 
   const set = <K extends keyof CollageStyle>(key: K, value: CollageStyle[K]) =>
     setStyle((s) => ({ ...s, [key]: value }));
+
+  const setSlotTransform = (slot: number, next: SlotTransform) =>
+    setTransforms((prev) => ({ ...prev, [slot]: clampSlotTransform(next) }));
+
+  function onSlotWheel(slot: number, e: React.WheelEvent) {
+    e.preventDefault();
+    const cur = transforms[slot] ?? DEFAULT_SLOT_TRANSFORM;
+    const delta = e.deltaY < 0 ? 0.1 : -0.1;
+    setSlotTransform(slot, { ...cur, scale: cur.scale + delta });
+  }
+
+  /** Accessible fallback for zoom (touch and keyboard both reach this): a
+   * range input / stepper pair bound to whichever slot was last touched.
+   * Clamped to the current layout's capacity in case the layout shrank. */
+  function activeSlotIndex() {
+    const capacity = layoutById(style.layoutId).capacity;
+    return Math.min(activeSlot, capacity - 1);
+  }
+  function setActiveSlotScale(scale: number) {
+    const slot = activeSlotIndex();
+    const cur = transforms[slot] ?? DEFAULT_SLOT_TRANSFORM;
+    setSlotTransform(slot, { ...cur, scale });
+  }
+  function stepActiveSlotZoom(delta: number) {
+    const cur = transforms[activeSlotIndex()] ?? DEFAULT_SLOT_TRANSFORM;
+    setActiveSlotScale(cur.scale + delta);
+  }
+
+  /** All pointers currently down on a given slot, as [pointerId, point] pairs. */
+  function pointersForSlot(slot: number) {
+    return [...pointersRef.current.entries()].filter(([, p]) => p.slot === slot);
+  }
+
+  function onSlotPointerDown(slot: number, e: React.PointerEvent) {
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    pointersRef.current.set(e.pointerId, { slot, x: e.clientX, y: e.clientY });
+    setActiveSlot(slot);
+
+    const onSlot = pointersForSlot(slot);
+    if (onSlot.length >= 2) {
+      // A second finger landed on this slot: suspend single-pointer pan and
+      // start a pinch from the two most recent points.
+      dragState.current = null;
+      const [[, p1], [, p2]] = onSlot.slice(-2);
+      pinchState.current = {
+        slot,
+        startDist: pointerDistance(p1, p2),
+        baseScale: (transforms[slot] ?? DEFAULT_SLOT_TRANSFORM).scale,
+      };
+    } else {
+      pinchState.current = null;
+      dragState.current = {
+        slot,
+        startX: e.clientX,
+        startY: e.clientY,
+        base: transforms[slot] ?? DEFAULT_SLOT_TRANSFORM,
+      };
+    }
+  }
+
+  function onSlotPointerMove(e: React.PointerEvent) {
+    const p = pointersRef.current.get(e.pointerId);
+    if (p) {
+      p.x = e.clientX;
+      p.y = e.clientY;
+    }
+
+    const pinch = pinchState.current;
+    if (pinch && p && p.slot === pinch.slot) {
+      const [[, p1], [, p2]] = pointersForSlot(pinch.slot).slice(-2);
+      const dist = pointerDistance(p1, p2);
+      const cur = transforms[pinch.slot] ?? DEFAULT_SLOT_TRANSFORM;
+      setSlotTransform(pinch.slot, {
+        ...cur,
+        scale: pinchScale(pinch.startDist, dist, pinch.baseScale),
+      });
+      return;
+    }
+
+    const d = dragState.current;
+    if (!d || (p && p.slot !== d.slot)) return;
+    const dx = (e.clientX - d.startX) / previewW;
+    const dy = (e.clientY - d.startY) / previewW;
+    setSlotTransform(d.slot, {
+      ...d.base,
+      offsetX: d.base.offsetX + dx,
+      offsetY: d.base.offsetY + dy,
+    });
+  }
+
+  function onSlotPointerUp(e: React.PointerEvent) {
+    const p = pointersRef.current.get(e.pointerId);
+    pointersRef.current.delete(e.pointerId);
+    dragState.current = null;
+    if (p && pinchState.current?.slot === p.slot && pointersForSlot(p.slot).length < 2) {
+      pinchState.current = null;
+    }
+  }
 
   // Measure the preview column so the 1080px canvas scales to fit any width.
   useEffect(() => {
@@ -292,20 +517,24 @@ export function CollageMaker({
     };
   }, [onClose]);
 
-  const scale = previewW / CANVAS_SIZE;
+  const size = canvasSizeFor(style.ratioId);
+  const scale = previewW / size.width;
+  const zoomSlot = activeSlotIndex();
+  const zoomTransform = transforms[zoomSlot] ?? DEFAULT_SLOT_TRANSFORM;
 
   const render = useCallback(async (): Promise<Blob> => {
     const node = nodeRef.current;
     if (!node) throw new Error("Collage not ready");
+    const dims = canvasSizeFor(style.ratioId);
     const blob = await toBlob(node, {
       pixelRatio: 2,
       cacheBust: true,
-      width: CANVAS_SIZE,
-      height: CANVAS_SIZE,
+      width: dims.width,
+      height: dims.height,
     });
     if (!blob) throw new Error("Export failed");
     return blob;
-  }, []);
+  }, [style.ratioId]);
 
   const filename = useMemo(
     () => `shaadi-collage-${style.hashtag.replace(/[^a-z0-9]/gi, "") || "memory"}.png`,
@@ -423,23 +652,77 @@ export function CollageMaker({
             <div ref={previewWrapRef} className="mx-auto w-full" style={{ maxWidth: 420 }}>
               <div
                 className="relative overflow-hidden rounded-xl"
-                style={{ width: previewW, height: previewW }}
+                style={{ width: previewW, height: previewW * (size.height / size.width) }}
               >
                 <div
                   style={{
                     transform: `scale(${scale})`,
                     transformOrigin: "top left",
-                    width: CANVAS_SIZE,
-                    height: CANVAS_SIZE,
+                    width: size.width,
+                    height: size.height,
                   }}
                 >
-                  <CollageCanvas nodeRef={nodeRef} photos={photos} style={style} />
+                  <CollageCanvas
+                    nodeRef={nodeRef}
+                    photos={photos}
+                    style={style}
+                    transforms={transforms}
+                    onSlotWheel={onSlotWheel}
+                    onSlotPointerDown={onSlotPointerDown}
+                    onSlotPointerMove={onSlotPointerMove}
+                    onSlotPointerUp={onSlotPointerUp}
+                  />
                 </div>
               </div>
             </div>
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              {photos.length} photo{photos.length === 1 ? "" : "s"} selected · exports at 1080×1080
+              {photos.length} photo{photos.length === 1 ? "" : "s"} selected · exports at{" "}
+              {size.width}×{size.height}
             </p>
+
+            {/* Per-slot zoom: pinch works on touch, but this range/stepper
+                pair is the guaranteed-reachable control on every device
+                (touch and keyboard), bound to whichever slot was last
+                touched (defaults to the first slot). */}
+            <div
+              className="mt-3 flex items-center gap-2 border-t border-border pt-3"
+              data-testid="collage-zoom-control"
+            >
+              <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                Zoom photo {zoomSlot + 1}
+              </span>
+              <button
+                type="button"
+                aria-label="Zoom out"
+                data-testid="collage-zoom-out"
+                onClick={() => stepActiveSlotZoom(-0.1)}
+                disabled={zoomTransform.scale <= 1}
+                className="grid size-11 shrink-0 place-items-center rounded-full border border-border text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+              >
+                −
+              </button>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.05}
+                value={zoomTransform.scale}
+                onChange={(e) => setActiveSlotScale(Number(e.target.value))}
+                aria-label={`Zoom for photo ${zoomSlot + 1}`}
+                data-testid="collage-zoom-range"
+                className="h-11 flex-1"
+              />
+              <button
+                type="button"
+                aria-label="Zoom in"
+                data-testid="collage-zoom-in"
+                onClick={() => stepActiveSlotZoom(0.1)}
+                disabled={zoomTransform.scale >= 3}
+                className="grid size-11 shrink-0 place-items-center rounded-full border border-border text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           {/* Presets */}
@@ -476,11 +759,43 @@ export function CollageMaker({
             </div>
           </section>
 
+          {/* Aspect ratio */}
+          <section className="mt-6">
+            <p className="mb-2 text-sm font-medium text-foreground">Aspect ratio</p>
+            <div className="flex gap-2">
+              {RATIOS.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  aria-pressed={style.ratioId === r.id}
+                  onClick={() => {
+                    const available = layoutsForRatio(r.id);
+                    setStyle((s) => ({
+                      ...s,
+                      ratioId: r.id,
+                      layoutId: available.some((l) => l.id === s.layoutId)
+                        ? s.layoutId
+                        : available[0].id,
+                    }));
+                  }}
+                  className={cn(
+                    "min-h-11 flex-1 rounded-xl border px-2 py-2 text-sm font-medium transition-colors",
+                    style.ratioId === r.id
+                      ? "border-marigold-deep bg-accent text-maroon"
+                      : "border-border bg-card text-muted-foreground hover:border-marigold/60",
+                  )}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
           {/* Layout */}
           <section className="mt-6">
             <p className="mb-2 text-sm font-medium text-foreground">Layout</p>
             <div className="grid grid-cols-4 gap-2">
-              {LAYOUTS.map((l) => (
+              {layoutsForRatio(style.ratioId).map((l) => (
                 <button
                   key={l.id}
                   type="button"
@@ -600,6 +915,34 @@ export function CollageMaker({
                 onChange={(e) => set("hashtag", e.target.value)}
                 placeholder="#SaatPhere"
               />
+            </div>
+          </section>
+
+          {/* Font */}
+          <section className="mt-6">
+            <p className="mb-2 text-sm font-medium text-foreground">Caption style</p>
+            <div className="flex gap-2">
+              {FONT_STYLES.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  aria-pressed={style.fontStyle === f.id}
+                  onClick={() => set("fontStyle", f.id)}
+                  style={{
+                    fontFamily: f.family,
+                    fontWeight: f.weight,
+                    fontStyle: f.italic ? "italic" : "normal",
+                  }}
+                  className={cn(
+                    "min-h-11 flex-1 rounded-xl border px-2 py-2 text-sm transition-colors",
+                    style.fontStyle === f.id
+                      ? "border-marigold-deep bg-accent text-maroon"
+                      : "border-border bg-card text-muted-foreground hover:border-marigold/60",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           </section>
         </div>

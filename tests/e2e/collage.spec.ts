@@ -43,3 +43,34 @@ test("collage: select photos, open the editor, and download a PNG", async ({ pag
   ]);
   expect(download.suggestedFilename()).toMatch(/\.png$/);
 });
+
+test("collage editor supports ratio switch and per-slot zoom", async ({ page }) => {
+  await reachResults(page);
+
+  // Enter selection mode.
+  await page.getByTestId("make-collage").click();
+  await expect(page.getByTestId("collage-select-bar")).toBeVisible();
+
+  const selectable = page.getByTestId("photo-select");
+  await selectable.nth(0).click();
+  await selectable.nth(1).click();
+  await selectable.nth(2).click();
+
+  await page.getByTestId("collage-continue").click();
+
+  const editor = page.getByTestId("collage-maker");
+  await expect(editor).toBeVisible();
+
+  await page.getByRole("button", { name: /square/i }).click();
+  await expect(page.getByText(/exports at 1080×1080/i)).toBeVisible();
+
+  const slot = page.getByTestId(/collage-slot-0/);
+  await slot.hover();
+  await page.mouse.wheel(0, -200); // zoom in on the hovered slot
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByTestId("collage-download").click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.png$/);
+});
