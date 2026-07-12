@@ -30,7 +30,7 @@ export type CollageLayout = {
   /** How many photos this layout holds. */
   capacity: number;
   /** "grid" layouts use `cols`/`rows`/`cells`; others render bespoke frames. */
-  kind: "grid" | "polaroid" | "filmstrip" | "hero" | "heart";
+  kind: "grid" | "polaroid" | "filmstrip" | "heart";
   cols?: number;
   rows?: number;
   cells?: Cell[];
@@ -245,18 +245,63 @@ export const DEFAULT_SLOT_TRANSFORM: SlotTransform = { scale: 1, offsetX: 0, off
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+const clampScale = (s: number) => clamp(s, 1, 3);
+
+/**
+ * A slot image is `scale`d then panned by `offset * 100%` of its own (already
+ * scaled) box. At scale 1 the image exactly fills the frame, so any pan would
+ * drag the frame's background into view — the offset must clamp to 0. Above
+ * scale 1 there's `(scale - 1)` worth of overscan split evenly on both sides
+ * of each axis, so the max pan in either direction is half of that: the
+ * background can never be exposed, however the scale/offset were produced
+ * (wheel, drag, or pinch).
+ */
+const clampOffsetForScale = (offset: number, scale: number) => {
+  const bound = (scale - 1) / 2;
+  // `|| 0` normalises a `-0` result (e.g. clamping a negative offset against
+  // a zero bound at scale 1) to `0`, since -0 !== 0 under deep-equality.
+  return clamp(offset, -bound, bound) || 0;
+};
+
 export function clampSlotTransform(t: SlotTransform): SlotTransform {
+  const scale = clampScale(t.scale);
   return {
-    scale: clamp(t.scale, 1, 3),
-    offsetX: clamp(t.offsetX, -0.5, 0.5),
-    offsetY: clamp(t.offsetY, -0.5, 0.5),
+    scale,
+    offsetX: clampOffsetForScale(t.offsetX, scale),
+    offsetY: clampOffsetForScale(t.offsetY, scale),
   };
 }
 
+/** Re-clamps before formatting so the exported CSS can never expose the
+ * slot's background, even if a caller assembled a `SlotTransform` without
+ * going through `clampSlotTransform` first. */
 export function slotTransformToCss(t: SlotTransform): string {
+  const { scale, offsetX, offsetY } = clampSlotTransform(t);
   const pct = (n: number) => `${Math.round(n * 100)}%`;
-  return `scale(${t.scale}) translate(${pct(t.offsetX)}, ${pct(t.offsetY)})`;
+  return `scale(${scale}) translate(${pct(offsetX)}, ${pct(offsetY)})`;
 }
+
+/** Euclidean distance between two pointer positions — the pure bit of pinch
+ * math, extracted so it's unit-testable without simulating touch events. */
+export function pointerDistance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/**
+ * Given the pinch distance at gesture start and the current distance, scales
+ * `baseScale` (the slot's scale when the second finger touched down) by the
+ * ratio of the two, then clamps to the normal [1, 3] range. A zero/negative
+ * `startDist` (degenerate gesture) is a no-op rather than a divide-by-zero.
+ */
+export function pinchScale(startDist: number, currentDist: number, baseScale: number): number {
+  if (startDist <= 0) return clampScale(baseScale);
+  return clampScale(baseScale * (currentDist / startDist));
+}
+
+/** Heart outline (parametric heart curve, sampled to 40 points and normalised
+ * to a 0–100% box) used as the `clip-path` for the heart-mosaic layout. */
+export const HEART_CLIP_PATH =
+  "polygon(50.0% 23.9%, 50.2% 22.2%, 51.5% 17.5%, 54.7% 11.3%, 60.2% 5.2%, 67.7% 1.0%, 76.5% 0.0%, 85.4% 2.7%, 93.0% 8.7%, 98.2% 17.3%, 100.0% 27.3%, 98.2% 37.7%, 93.0% 47.7%, 85.4% 57.2%, 76.5% 66.0%, 67.7% 74.4%, 60.2% 82.3%, 54.7% 89.3%, 51.5% 95.0%, 50.2% 98.7%, 50.0% 100.0%, 49.8% 98.7%, 48.5% 95.0%, 45.3% 89.3%, 39.8% 82.3%, 32.3% 74.4%, 23.5% 66.0%, 14.6% 57.2%, 7.0% 47.7%, 1.8% 37.7%, 0.0% 27.3%, 1.8% 17.3%, 7.0% 8.7%, 14.6% 2.7%, 23.5% 0.0%, 32.3% 1.0%, 39.8% 5.2%, 45.3% 11.3%, 48.5% 17.5%, 49.8% 22.2%)";
 
 export type CaptionFontStyle = "serif" | "script" | "sans-bold";
 

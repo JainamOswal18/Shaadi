@@ -16,6 +16,7 @@ import {
   DEFAULT_STYLE,
   DEFAULT_SLOT_TRANSFORM,
   FONT_STYLES,
+  HEART_CLIP_PATH,
   MOTIFS,
   PRESETS,
   THEMES,
@@ -23,6 +24,8 @@ import {
   clampSlotTransform,
   layoutsForRatio,
   layoutById,
+  pinchScale,
+  pointerDistance,
   slotTransformToCss,
   themeById,
   type CollageStyle,
@@ -62,7 +65,7 @@ function CollageCanvas({
   onSlotWheel: (i: number, e: React.WheelEvent) => void;
   onSlotPointerDown: (i: number, e: React.PointerEvent) => void;
   onSlotPointerMove: (e: React.PointerEvent) => void;
-  onSlotPointerUp: () => void;
+  onSlotPointerUp: (e: React.PointerEvent) => void;
 }) {
   const size = canvasSizeFor(style.ratioId);
   const layout = layoutById(style.layoutId);
@@ -84,6 +87,7 @@ function CollageCanvas({
     onPointerDown: (e: React.PointerEvent) => onSlotPointerDown(i, e),
     onPointerMove: onSlotPointerMove,
     onPointerUp: onSlotPointerUp,
+    onPointerCancel: onSlotPointerUp,
   });
 
   const slotTransform = (i: number) => transforms[i] ?? DEFAULT_SLOT_TRANSFORM;
@@ -214,6 +218,64 @@ function CollageCanvas({
         ))}
       </div>
     );
+  } else if (layout.kind === "heart") {
+    // Heart-mosaic: a fixed 2-col/3-row grid of 5 photos, clipped to a heart
+    // outline so the *collage* reads as heart-shaped (not a per-photo mask).
+    const heartCells = [0, 1, 2, 3, 4];
+    photoArea = (
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          clipPath: HEART_CLIP_PATH,
+          WebkitClipPath: HEART_CLIP_PATH,
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gridTemplateRows: "repeat(3, 1fr)",
+            gap: style.border,
+            width: "100%",
+            height: "100%",
+            background: theme.frame,
+          }}
+        >
+          {heartCells.map((i) => (
+            <div
+              key={i}
+              {...slotProps(i)}
+              style={{
+                gridColumn: i === 4 ? "1 / span 2" : undefined,
+                overflow: "hidden",
+                background: theme.frame,
+                touchAction: "none",
+              }}
+            >
+              {slots[i] && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={slots[i].previewUrl}
+                  alt=""
+                  role="img"
+                  crossOrigin="anonymous"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                    transform: slotTransformToCss(slotTransform(i)),
+                    transformOrigin: "center",
+                  }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   } else {
     // filmstrip
     photoArea = (
@@ -316,6 +378,7 @@ export function CollageMaker({
   const [previewW, setPreviewW] = useState(320);
   const [busy, setBusy] = useState<null | "download" | "share" | "gallery">(null);
   const [transforms, setTransforms] = useState<Record<number, SlotTransform>>({});
+  const [activeSlot, setActiveSlot] = useState(0);
   const nodeRef = useRef<HTMLDivElement>(null);
   const previewWrapRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{
@@ -324,6 +387,10 @@ export function CollageMaker({
     startY: number;
     base: SlotTransform;
   } | null>(null);
+  // Every pointer currently down on any slot, keyed by pointerId — lets us
+  // detect a same-slot 2-finger pinch without a separate touch-events path.
+  const pointersRef = useRef<Map<number, { slot: number; x: number; y: number }>>(new Map());
+  const pinchState = useRef<{ slot: number; startDist: number; baseScale: number } | null>(null);
 
   const set = <K extends keyof CollageStyle>(key: K, value: CollageStyle[K]) =>
     setStyle((s) => ({ ...s, [key]: value }));
@@ -338,19 +405,76 @@ export function CollageMaker({
     setSlotTransform(slot, { ...cur, scale: cur.scale + delta });
   }
 
+  /** Accessible fallback for zoom (touch and keyboard both reach this): a
+   * range input / stepper pair bound to whichever slot was last touched.
+   * Clamped to the current layout's capacity in case the layout shrank. */
+  function activeSlotIndex() {
+    const capacity = layoutById(style.layoutId).capacity;
+    return Math.min(activeSlot, capacity - 1);
+  }
+  function setActiveSlotScale(scale: number) {
+    const slot = activeSlotIndex();
+    const cur = transforms[slot] ?? DEFAULT_SLOT_TRANSFORM;
+    setSlotTransform(slot, { ...cur, scale });
+  }
+  function stepActiveSlotZoom(delta: number) {
+    const cur = transforms[activeSlotIndex()] ?? DEFAULT_SLOT_TRANSFORM;
+    setActiveSlotScale(cur.scale + delta);
+  }
+
+  /** All pointers currently down on a given slot, as [pointerId, point] pairs. */
+  function pointersForSlot(slot: number) {
+    return [...pointersRef.current.entries()].filter(([, p]) => p.slot === slot);
+  }
+
   function onSlotPointerDown(slot: number, e: React.PointerEvent) {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    dragState.current = {
-      slot,
-      startX: e.clientX,
-      startY: e.clientY,
-      base: transforms[slot] ?? DEFAULT_SLOT_TRANSFORM,
-    };
+    pointersRef.current.set(e.pointerId, { slot, x: e.clientX, y: e.clientY });
+    setActiveSlot(slot);
+
+    const onSlot = pointersForSlot(slot);
+    if (onSlot.length >= 2) {
+      // A second finger landed on this slot: suspend single-pointer pan and
+      // start a pinch from the two most recent points.
+      dragState.current = null;
+      const [[, p1], [, p2]] = onSlot.slice(-2);
+      pinchState.current = {
+        slot,
+        startDist: pointerDistance(p1, p2),
+        baseScale: (transforms[slot] ?? DEFAULT_SLOT_TRANSFORM).scale,
+      };
+    } else {
+      pinchState.current = null;
+      dragState.current = {
+        slot,
+        startX: e.clientX,
+        startY: e.clientY,
+        base: transforms[slot] ?? DEFAULT_SLOT_TRANSFORM,
+      };
+    }
   }
 
   function onSlotPointerMove(e: React.PointerEvent) {
+    const p = pointersRef.current.get(e.pointerId);
+    if (p) {
+      p.x = e.clientX;
+      p.y = e.clientY;
+    }
+
+    const pinch = pinchState.current;
+    if (pinch && p && p.slot === pinch.slot) {
+      const [[, p1], [, p2]] = pointersForSlot(pinch.slot).slice(-2);
+      const dist = pointerDistance(p1, p2);
+      const cur = transforms[pinch.slot] ?? DEFAULT_SLOT_TRANSFORM;
+      setSlotTransform(pinch.slot, {
+        ...cur,
+        scale: pinchScale(pinch.startDist, dist, pinch.baseScale),
+      });
+      return;
+    }
+
     const d = dragState.current;
-    if (!d) return;
+    if (!d || (p && p.slot !== d.slot)) return;
     const dx = (e.clientX - d.startX) / previewW;
     const dy = (e.clientY - d.startY) / previewW;
     setSlotTransform(d.slot, {
@@ -360,8 +484,13 @@ export function CollageMaker({
     });
   }
 
-  function onSlotPointerUp() {
+  function onSlotPointerUp(e: React.PointerEvent) {
+    const p = pointersRef.current.get(e.pointerId);
+    pointersRef.current.delete(e.pointerId);
     dragState.current = null;
+    if (p && pinchState.current?.slot === p.slot && pointersForSlot(p.slot).length < 2) {
+      pinchState.current = null;
+    }
   }
 
   // Measure the preview column so the 1080px canvas scales to fit any width.
@@ -390,6 +519,8 @@ export function CollageMaker({
 
   const size = canvasSizeFor(style.ratioId);
   const scale = previewW / size.width;
+  const zoomSlot = activeSlotIndex();
+  const zoomTransform = transforms[zoomSlot] ?? DEFAULT_SLOT_TRANSFORM;
 
   const render = useCallback(async (): Promise<Blob> => {
     const node = nodeRef.current;
@@ -548,6 +679,50 @@ export function CollageMaker({
               {photos.length} photo{photos.length === 1 ? "" : "s"} selected · exports at{" "}
               {size.width}×{size.height}
             </p>
+
+            {/* Per-slot zoom: pinch works on touch, but this range/stepper
+                pair is the guaranteed-reachable control on every device
+                (touch and keyboard), bound to whichever slot was last
+                touched (defaults to the first slot). */}
+            <div
+              className="mt-3 flex items-center gap-2 border-t border-border pt-3"
+              data-testid="collage-zoom-control"
+            >
+              <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                Zoom photo {zoomSlot + 1}
+              </span>
+              <button
+                type="button"
+                aria-label="Zoom out"
+                data-testid="collage-zoom-out"
+                onClick={() => stepActiveSlotZoom(-0.1)}
+                disabled={zoomTransform.scale <= 1}
+                className="grid size-11 shrink-0 place-items-center rounded-full border border-border text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+              >
+                −
+              </button>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.05}
+                value={zoomTransform.scale}
+                onChange={(e) => setActiveSlotScale(Number(e.target.value))}
+                aria-label={`Zoom for photo ${zoomSlot + 1}`}
+                data-testid="collage-zoom-range"
+                className="h-11 flex-1"
+              />
+              <button
+                type="button"
+                aria-label="Zoom in"
+                data-testid="collage-zoom-in"
+                onClick={() => stepActiveSlotZoom(0.1)}
+                disabled={zoomTransform.scale >= 3}
+                className="grid size-11 shrink-0 place-items-center rounded-full border border-border text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           {/* Presets */}
