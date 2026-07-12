@@ -229,6 +229,23 @@ export async function updateSettings(
   );
 }
 
+export type SearchLogItem = {
+  id: string;
+  guestName: string | null;
+  at: string;
+  matchCount: number;
+  selfieUrl: string | null;
+};
+
+export async function fetchSearches(
+  limit = 20,
+  offset = 0,
+): Promise<{ searches: SearchLogItem[]; hasMore: boolean }> {
+  return asJson<{ searches: SearchLogItem[]; hasMore: boolean }>(
+    await fetch(`/api/admin/searches?limit=${limit}&offset=${offset}`),
+  );
+}
+
 export async function deleteMedia(photoId: string): Promise<void> {
   await asJson<{ ok: boolean }>(
     await fetch("/api/admin/delete", {

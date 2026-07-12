@@ -103,6 +103,15 @@ const state = {
           : `photo-${1 + (i % 8)}`,
     at: new Date(Date.now() - i * 1800_000).toISOString(),
   })),
+  // Admin "Who searched" feed — fake rows with data-URI selfies so the view
+  // renders fully offline (no real R2 signed URL needed in dev/e2e).
+  searches: Array.from({ length: 24 }, (_, i) => ({
+    id: `search-${i + 1}`,
+    guestName: i % 6 === 5 ? null : ["Aarav", "Diya", "Kabir", "Meera", "Rohan"][i % 5],
+    at: new Date(Date.now() - i * 2100_000).toISOString(),
+    matchCount: i % 6 === 5 ? 0 : 1 + (i % 9),
+    selfieUrl: placeholder(i, 96, 96),
+  })),
 };
 
 const isAuthed = (req: Request) =>
@@ -223,6 +232,15 @@ export const handlers = [
   http.get("/api/admin/media", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ error: "Unauthorized" }, { status: 401 });
     return HttpResponse.json({ media: state.media });
+  }),
+
+  http.get("/api/admin/searches", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const url = new URL(request.url);
+    const limit = Math.max(1, Number(url.searchParams.get("limit") ?? 20));
+    const offset = Math.max(0, Number(url.searchParams.get("offset") ?? 0));
+    const page = state.searches.slice(offset, offset + limit);
+    return HttpResponse.json({ searches: page, hasMore: offset + limit < state.searches.length });
   }),
 
   http.get("/api/admin/settings", ({ request }) => {

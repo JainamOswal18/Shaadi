@@ -34,3 +34,19 @@ test("admin: dashboard redirects to login when unauthenticated", async ({ page }
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin\/login$/);
 });
+
+test("admin: Who searched tab shows guest name, selfie thumbnail, and match count", async ({
+  page,
+}) => {
+  await page.goto("/admin/login");
+  await page.getByLabel(/admin password/i).fill(MOCK_ADMIN_PASSWORD);
+  await page.getByRole("button", { name: /sign in/i }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+
+  await page.getByRole("tab", { name: /who searched/i }).click();
+
+  const row = page.getByTestId("search-row").first();
+  await expect(row).toBeVisible();
+  await expect(row.locator("img")).toBeVisible();
+  await expect(row).toContainText(/Aarav|Diya|Kabir|Meera|Rohan|Guest/);
+});

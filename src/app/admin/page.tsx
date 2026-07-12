@@ -10,11 +10,13 @@ import {
   ScrollText,
   SlidersHorizontal,
   Trash2,
+  UserSearch,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminSettings } from "@/lib/types";
 import { Brand } from "@/components/Brand";
 import { AdminTable } from "@/components/AdminTable";
+import { SearchesTable } from "@/components/SearchesTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,14 +37,16 @@ import {
   deleteMedia,
   fetchLogs,
   fetchMedia,
+  fetchSearches,
   fetchSettings,
   updateSettings,
   type LogsResponse,
   type MediaItem,
+  type SearchLogItem,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type Tab = "logs" | "media" | "settings";
+type Tab = "logs" | "media" | "searches" | "settings";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -52,6 +56,9 @@ export default function AdminDashboard() {
   const [logs, setLogs] = useState<LogsResponse | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
   const [media, setMedia] = useState<MediaItem[]>([]);
+  const [searches, setSearches] = useState<SearchLogItem[]>([]);
+  const [searchesHasMore, setSearchesHasMore] = useState(false);
+  const [searchesLoading, setSearchesLoading] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const guard = useCallback(
@@ -68,16 +75,36 @@ export default function AdminDashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const [s, l, m] = await Promise.all([fetchSettings(), fetchLogs(1), fetchMedia()]);
+        const [s, l, m, sr] = await Promise.all([
+          fetchSettings(),
+          fetchLogs(1),
+          fetchMedia(),
+          fetchSearches(),
+        ]);
         setSettings(s);
         setLogs(l);
         setMedia(m.media);
+        setSearches(sr.searches);
+        setSearchesHasMore(sr.hasMore);
         setReady(true);
       } catch (err) {
         if (!guard(err)) toast.error("Couldn't load the console");
       }
     })();
   }, [guard]);
+
+  const loadMoreSearches = useCallback(async () => {
+    setSearchesLoading(true);
+    try {
+      const res = await fetchSearches(20, searches.length);
+      setSearches((prev) => [...prev, ...res.searches]);
+      setSearchesHasMore(res.hasMore);
+    } catch (err) {
+      if (!guard(err)) toast.error("Couldn't load more searches");
+    } finally {
+      setSearchesLoading(false);
+    }
+  }, [guard, searches.length]);
 
   const loadLogs = useCallback(
     async (page: number) => {
@@ -127,6 +154,7 @@ export default function AdminDashboard() {
   const tabs: { id: Tab; label: string; icon: typeof ScrollText }[] = [
     { id: "logs", label: "Activity", icon: ScrollText },
     { id: "media", label: "Media", icon: Film },
+    { id: "searches", label: "Who searched", icon: UserSearch },
     { id: "settings", label: "Settings", icon: SlidersHorizontal },
   ];
 
@@ -264,6 +292,15 @@ export default function AdminDashboard() {
               </ul>
             )}
           </div>
+        )}
+
+        {tab === "searches" && (
+          <SearchesTable
+            searches={searches}
+            hasMore={searchesHasMore}
+            loading={searchesLoading}
+            onLoadMore={loadMoreSearches}
+          />
         )}
 
         {tab === "settings" && settings && (
