@@ -147,7 +147,7 @@ export default function Home() {
       </AnimatePresence>
 
       <header className="flex flex-col items-center gap-4 text-center">
-        <Brand size="lg" href={null} />
+        <Brand size="lg" href={null} withEst />
         <Garland />
       </header>
 
