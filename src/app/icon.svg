@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Jeena — Nameeta and Jeenendra">
+  <rect width="64" height="64" rx="14" fill="#5A1F2B"/>
+
+  <!-- Groom (left): gold turban dome behind, rose-gold skin face on top -->
+  <circle cx="21" cy="27" r="14" fill="#C9A24B"/>
+  <circle cx="21" cy="37" r="13" fill="#D98A6E"/>
+
+  <!-- Bride (right): dark hair dome behind, ivory skin face on top -->
+  <circle cx="42" cy="26" r="15" fill="#2A0E15"/>
+  <circle cx="42" cy="37" r="13" fill="#FAF3EE"/>
+  <circle cx="42" cy="28" r="2" fill="#C9A24B"/>
+
+  <!-- Gold heart -->
+  <path d="M32 61
+           C 25.5 55.8 21.5 52.3 21.5 48.3
+           C 21.5 45.1 24 42.8 27 42.8
+           C 29.4 42.8 31.2 44.5 32 46.3
+           C 32.8 44.5 34.6 42.8 37 42.8
+           C 40 42.8 42.5 45.1 42.5 48.3
+           C 42.5 52.3 38.5 55.8 32 61 Z" fill="#C9A24B"/>
+</svg>

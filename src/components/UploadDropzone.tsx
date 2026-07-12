@@ -218,10 +218,9 @@ export function UploadDropzone({
           <CloudUpload className="size-7" />
         </span>
         <div>
-          <p className="font-heading text-lg font-semibold text-maroon">Add your photos &amp; videos</p>
+          <p className="font-heading text-lg font-semibold text-maroon">Drop your memories here</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tap to choose, or drag files here. Up to {remaining.photos} photos and{" "}
-            {remaining.videos} videos.
+            Tap to choose, or drag files in. Up to {remaining.photos} photos and {remaining.videos} videos.
           </p>
         </div>
         <input

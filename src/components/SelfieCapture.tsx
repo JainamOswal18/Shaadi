@@ -24,6 +24,7 @@ export function SelfieCapture({
   const [mode, setMode] = useState<Mode>("idle");
   const [preview, setPreview] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [trayOpen, setTrayOpen] = useState(false);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -31,6 +32,15 @@ export function SelfieCapture({
   }, []);
 
   useEffect(() => () => stopStream(), [stopStream]);
+
+  useEffect(() => {
+    if (!trayOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTrayOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [trayOpen]);
 
   const startCamera = useCallback(async () => {
     setMessage(null);
@@ -126,9 +136,26 @@ export function SelfieCapture({
   return (
     <div className="flex flex-col gap-3">
       <div
+        data-testid="selfie-box"
+        role={mode === "idle" || mode === "denied" || mode === "error" ? "button" : undefined}
+        tabIndex={mode === "idle" || mode === "denied" || mode === "error" ? 0 : undefined}
+        onClick={() => {
+          if (mode === "idle" || mode === "denied" || mode === "error") setTrayOpen(true);
+        }}
+        onKeyDown={(e) => {
+          if (
+            (e.key === "Enter" || e.key === " ") &&
+            (mode === "idle" || mode === "denied" || mode === "error")
+          ) {
+            e.preventDefault();
+            setTrayOpen(true);
+          }
+        }}
         className={cn(
           "relative aspect-square w-full overflow-hidden rounded-2xl border border-border bg-invitation",
           "grid place-items-center text-center",
+          (mode === "idle" || mode === "denied" || mode === "error") &&
+            "cursor-pointer focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none",
         )}
         data-selfie-state={mode}
       >
@@ -168,49 +195,76 @@ export function SelfieCapture({
             <Check className="size-4" />
           </span>
         )}
-      </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
-        {mode === "live" ? (
-          <Button type="button" variant="marigold" size="xl" className="flex-1" onClick={capture}>
-            <Camera /> Capture
-          </Button>
-        ) : mode === "captured" ? (
-          <Button type="button" variant="outline" size="xl" className="flex-1" onClick={retake}>
-            <RotateCcw /> Retake
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="marigold"
-            size="xl"
-            className="flex-1"
-            onClick={startCamera}
-            disabled={mode === "requesting"}
-          >
-            <Camera /> {mode === "requesting" ? "Opening camera…" : "Use camera"}
-          </Button>
+        {trayOpen && (
+          <>
+            <div
+              className="absolute inset-0 z-10 bg-maroon/25"
+              onClick={(e) => {
+                e.stopPropagation();
+                setTrayOpen(false);
+              }}
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Add a selfie"
+              className="absolute inset-x-3 bottom-3 z-20 overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-[var(--shadow-float)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="touch"
+                data-testid="tray-camera"
+                className="w-full justify-start text-maroon"
+                onClick={() => {
+                  setTrayOpen(false);
+                  void startCamera();
+                }}
+              >
+                <Camera /> Take a selfie
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="touch"
+                data-testid="tray-gallery"
+                className="w-full justify-start border-t border-border text-maroon"
+                onClick={() => {
+                  setTrayOpen(false);
+                  fileRef.current?.click();
+                }}
+              >
+                <Upload /> Choose from gallery
+              </Button>
+            </div>
+          </>
         )}
-
-        <Button
-          type="button"
-          variant="outline"
-          size="xl"
-          className="flex-1"
-          onClick={() => fileRef.current?.click()}
-        >
-          <Upload /> Upload photo
-        </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          capture="user"
-          className="sr-only"
-          aria-label="Upload a selfie photo"
-          onChange={onFile}
-        />
       </div>
+
+      {(mode === "live" || mode === "captured") && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {mode === "live" ? (
+            <Button type="button" variant="marigold" size="xl" className="flex-1" onClick={capture}>
+              <Camera /> Capture
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" size="xl" className="flex-1" onClick={retake}>
+              <RotateCcw /> Retake
+            </Button>
+          )}
+        </div>
+      )}
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        aria-label="Upload a selfie photo"
+        onChange={onFile}
+      />
     </div>
   );
 }

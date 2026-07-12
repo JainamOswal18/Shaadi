@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jeena — Design Options Lookbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Hanken+Grotesk:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet" />
+<style>
+/* ============ Refined Marigold tokens ============ */
+:root{
+  --cream:#FBF6EC;
+  --card:#FEFBF4;
+  --marigold:#E8A33D;
+  --marigold-deep:#CC7A2E;
+  --gold:#C6A15B;
+  --maroon:#4A1420;
+  --ink:#2A1016;
+  --muted:#8A6A62;
+  --rose:#C97B84;          /* selectable accent */
+  --rose-soft:#EAD1CE;
+  --henna:#6B7A4A;
+  --border:#E6D6C4;
+  --shadow:0 1px 2px rgba(74,20,32,.06), 0 18px 40px -22px rgba(74,20,32,.28);
+  --shadow-float:0 24px 60px -24px rgba(74,20,32,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  font-family:"Hanken Grotesk",system-ui,sans-serif;
+  background:
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb,var(--marigold) 16%,transparent), transparent 60%),
+    var(--cream);
+  color:var(--ink);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:120px;
+}
+.serif{font-family:"Fraunces",Georgia,serif}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+h2.section-title{font-family:"Fraunces",serif;font-weight:600;color:var(--maroon);letter-spacing:-.01em}
+
+/* ============ Top masthead ============ */
+.masthead{text-align:center;padding:64px 24px 40px}
+.masthead .kicker{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--marigold-deep);font-weight:600}
+.masthead h1{font-family:"Fraunces",serif;font-style:italic;font-weight:600;font-size:clamp(44px,9vw,86px);color:var(--maroon);line-height:1;margin:14px 0 6px}
+.masthead h1 .dot{color:var(--marigold-deep);font-style:normal}
+.masthead p{color:var(--muted);max-width:520px;margin:12px auto 0;font-size:15px}
+.divider{width:60px;height:1px;background:var(--gold);margin:26px auto;opacity:.7}
+
+/* ============ Section shell ============ */
+section{padding:44px 0;border-top:1px solid var(--border)}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;color:var(--marigold-deep);margin-bottom:8px}
+.eyebrow .num{display:grid;place-items:center;width:22px;height:22px;border:1px solid var(--gold);border-radius:50%;font-size:11px;color:var(--gold)}
+.section-lead{color:var(--muted);max-width:640px;margin:6px 0 26px;font-size:15px}
+
+/* ============ Selectable card grid ============ */
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:820px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+.pick{
+  position:relative;background:var(--card);border:1.5px solid var(--border);border-radius:20px;
+  padding:22px;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s;
+  box-shadow:var(--shadow);
+}
+.pick:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--marigold) 55%,var(--border))}
+.pick[aria-pressed="true"]{border-color:var(--marigold-deep);box-shadow:0 0 0 3px color-mix(in srgb,var(--marigold-deep) 22%,transparent),var(--shadow)}
+.pick .check{position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:50%;
+  background:var(--marigold-deep);color:#fff;display:none;place-items:center;font-size:15px}
+.pick[aria-pressed="true"] .check{display:grid}
+.pick .lbl{font-size:12px;color:var(--muted);margin-top:14px;font-weight:500}
+.pick .cap{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+
+/* ============ Wordmark treatments ============ */
+.wm{min-height:96px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+.wm .mark{color:var(--maroon)}
+.wm-a .mark{font-family:"Fraunces",serif;font-style:italic;font-weight:600;font-size:44px;line-height:1}
+.wm-a .mark .dot{color:var(--marigold-deep);font-style:normal}
+.wm-b .mark{font-family:"Fraunces",serif;font-weight:600;font-size:40px;letter-spacing:.02em}
+.wm-b .rule{width:56px;height:2px;background:var(--gold);margin-top:10px;border-radius:2px}
+.wm-b .sub{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--marigold-deep);margin-top:10px;font-weight:600}
+.wm-c .mark{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:48px;letter-spacing:.04em}
+.wm-c .amp{color:var(--rose)}
+.wm-c .sub{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:17px;color:var(--muted);margin-top:2px}
+.wm-d{flex-direction:row;align-items:center;gap:14px}
+.wm-d .mono{width:52px;height:52px;border:1.5px solid var(--gold);border-radius:50%;display:grid;place-items:center;
+  font-family:"Fraunces",serif;font-style:italic;font-weight:600;font-size:26px;color:var(--maroon)}
+.wm-d .mark{font-family:"Fraunces",serif;font-weight:600;font-size:34px}
+.wm-d .sub{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--marigold-deep);margin-top:4px;font-weight:600}
+
+/* ============ Tagline chips ============ */
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{border:1.5px solid var(--border);background:var(--card);border-radius:999px;padding:10px 18px;cursor:pointer;
+  font-size:14px;color:var(--maroon);transition:all .18s}
+.chip:hover{border-color:color-mix(in srgb,var(--marigold) 55%,var(--border))}
+.chip[aria-pressed="true"]{background:var(--marigold-deep);color:#fff;border-color:var(--marigold-deep)}
+.chip .serif{font-style:italic}
+
+/* ============ Palette ============ */
+.swatches{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px}
+.sw{width:96px}
+.sw .chipc{height:64px;border-radius:14px;border:1px solid rgba(0,0,0,.06);box-shadow:var(--shadow)}
+.sw .name{font-size:12px;font-weight:600;margin-top:8px;color:var(--maroon)}
+.sw .hex{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rose-opts{display:flex;gap:12px;margin-top:6px}
+.rose-opt{cursor:pointer;text-align:center}
+.rose-opt .dot{width:40px;height:40px;border-radius:50%;border:2px solid var(--border);transition:transform .15s,border-color .15s}
+.rose-opt[aria-pressed="true"] .dot{border-color:var(--maroon);transform:scale(1.08)}
+.rose-opt .t{font-size:11px;color:var(--muted);margin-top:6px}
+
+/* ============ Live invitation preview ============ */
+.invite{
+  background:
+    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb,var(--marigold) 14%,transparent), transparent 60%),
+    radial-gradient(90% 60% at 100% 110%, color-mix(in srgb,var(--gold) 12%,transparent), transparent 55%),
+    var(--card);
+  border:1px solid var(--border);border-radius:26px;padding:34px 26px;text-align:center;box-shadow:var(--shadow-float);
+  max-width:420px;margin:0 auto;
+}
+.invite .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--card);
+  border-radius:999px;padding:6px 14px;font-size:12px;color:var(--marigold-deep);font-weight:600}
+.invite h3{font-family:"Fraunces",serif;font-weight:600;font-size:30px;color:var(--maroon);line-height:1.1;margin:18px 0 10px}
+.invite h3 em{font-style:italic;color:var(--marigold-deep)}
+.invite p{color:var(--muted);font-size:14px;max-width:300px;margin:0 auto}
+.invite .cta{margin-top:22px;display:inline-flex;align-items:center;gap:8px;background:var(--marigold-deep);color:#fff;
+  border:none;border-radius:14px;padding:14px 26px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:var(--shadow)}
+/* garland */
+.garland{display:block;width:220px;height:26px;margin:14px auto 0}
+
+/* ============ Selfie tray mock ============ */
+.phone{width:300px;max-width:100%;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:28px;
+  padding:16px;box-shadow:var(--shadow-float);position:relative;overflow:hidden}
+.selfie-box{aspect-ratio:1;border-radius:20px;border:1px solid var(--border);
+  background:radial-gradient(120% 90% at 50% -10%, color-mix(in srgb,var(--marigold) 14%,transparent),transparent),var(--cream);
+  display:grid;place-items:center;text-align:center;cursor:pointer;position:relative}
+.selfie-box .ic{width:60px;height:60px;border-radius:50%;background:color-mix(in srgb,var(--card) 70%,transparent);
+  display:grid;place-items:center;color:var(--marigold-deep);box-shadow:var(--shadow);margin-bottom:12px}
+.selfie-box small{color:var(--muted);font-size:13px;max-width:180px}
+.tray{position:absolute;left:12px;right:12px;bottom:12px;background:var(--card);border:1px solid var(--border);
+  border-radius:20px;box-shadow:var(--shadow-float);padding:8px;transform:translateY(140%);transition:transform .32s cubic-bezier(.22,1,.36,1)}
+.tray.open{transform:translateY(0)}
+.tray button{width:100%;display:flex;align-items:center;gap:12px;background:none;border:none;padding:14px 12px;
+  font-size:15px;color:var(--maroon);cursor:pointer;border-radius:12px;text-align:left;font-weight:500}
+.tray button:hover{background:var(--cream)}
+.tray button + button{border-top:1px solid var(--border)}
+.tray .ti{width:38px;height:38px;border-radius:10px;background:color-mix(in srgb,var(--marigold) 20%,var(--card));
+  display:grid;place-items:center;color:var(--marigold-deep)}
+.scrim{position:absolute;inset:0;background:rgba(42,16,22,.28);opacity:0;pointer-events:none;transition:opacity .3s;border-radius:28px}
+.scrim.open{opacity:1;pointer-events:auto}
+
+/* ============ Intro animation demo ============ */
+.stage{position:relative;height:420px;border-radius:24px;overflow:hidden;border:1px solid var(--gold);
+  background:radial-gradient(120% 90% at 50% -10%, color-mix(in srgb,var(--marigold) 18%,transparent),transparent 60%),var(--cream);
+  box-shadow:var(--shadow-float)}
+.stage .frame{position:absolute;inset:14px;border:1px solid color-mix(in srgb,var(--gold) 55%,transparent);border-radius:18px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+.stage .eyebrow2{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--marigold-deep);font-weight:600;opacity:0}
+.stage h3{font-family:"Fraunces",serif;font-style:italic;font-weight:600;font-size:clamp(34px,7vw,52px);color:var(--maroon);
+  line-height:1.02;margin:14px 0 8px;opacity:0}
+.stage h3 .dot{color:var(--marigold-deep);font-style:normal}
+.stage .sub2{color:var(--muted);font-size:14px;max-width:300px;opacity:0}
+.stage .g3g{opacity:0}
+.replaying .eyebrow2{animation:rise .6s .15s cubic-bezier(.22,1,.36,1) forwards}
+.replaying .g3g{animation:rise .6s .3s cubic-bezier(.22,1,.36,1) forwards}
+.replaying h3{animation:rise .7s .5s cubic-bezier(.22,1,.36,1) forwards}
+.replaying .sub2{animation:rise .7s .75s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.petal,.heart{position:absolute;top:-30px;pointer-events:none;will-change:transform}
+.petal{width:12px;height:12px;border-radius:60% 0 60% 0;background:var(--marigold);opacity:.85}
+.heart{color:var(--rose);font-size:16px;opacity:.9}
+@keyframes fall{to{transform:translateY(480px) rotate(320deg);opacity:0}}
+.intro-controls{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.mini-btn{border:1.5px solid var(--border);background:var(--card);border-radius:12px;padding:10px 16px;font-size:14px;
+  color:var(--maroon);cursor:pointer;font-weight:500}
+.mini-btn:hover{border-color:var(--marigold-deep)}
+.mini-btn.active{background:var(--marigold-deep);color:#fff;border-color:var(--marigold-deep)}
+
+/* ============ Collage layouts ============ */
+.ratio-toggle{display:inline-flex;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;margin-bottom:20px}
+.ratio-toggle button{border:none;background:none;padding:8px 16px;border-radius:9px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer}
+.ratio-toggle button.active{background:var(--marigold-deep);color:#fff}
+.layouts{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media(max-width:820px){.layouts{grid-template-columns:repeat(2,1fr)}}
+.layout{background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:14px;text-align:center;cursor:pointer;transition:all .2s}
+.layout:hover{transform:translateY(-3px);border-color:var(--marigold-deep)}
+.layout .canvas{margin:0 auto;background:var(--rose-soft);border-radius:8px;display:grid;gap:4px;padding:6px;transition:width .3s,height .3s}
+.layout .cell{background:var(--maroon);border-radius:4px;opacity:.85}
+.layout .name{font-size:12.5px;font-weight:600;color:var(--maroon);margin-top:10px}
+
+/* ============ Reel mock ============ */
+.reel-mock{max-width:340px;margin:0 auto;background:#1a0f10;border-radius:28px;padding:16px;box-shadow:var(--shadow-float)}
+.reel-preview{aspect-ratio:4/5;border-radius:16px;overflow:hidden;position:relative;
+  background:linear-gradient(135deg,#6E2233,#4A1420);display:grid;place-items:center}
+.reel-preview .play{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.9);display:grid;place-items:center;color:var(--maroon);font-size:22px}
+.reel-preview .tag{position:absolute;left:12px;bottom:12px;color:#fff;font-family:"Fraunces",serif;font-style:italic;font-size:20px}
+.reel-strip{display:flex;gap:6px;margin-top:12px;overflow:hidden}
+.reel-strip .th{width:44px;height:44px;border-radius:8px;background:var(--rose);flex:0 0 auto;opacity:.9}
+.reel-strip .th:nth-child(2){background:var(--marigold)}
+.reel-strip .th:nth-child(3){background:var(--gold)}
+.reel-strip .th:nth-child(4){background:var(--henna)}
+.reel-strip .th:nth-child(5){background:var(--rose-soft)}
+.reel-row{display:flex;align-items:center;gap:10px;margin-top:14px;background:rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;color:#fff}
+.reel-row .wave{flex:1;height:22px;display:flex;align-items:center;gap:2px}
+.reel-row .wave i{flex:1;background:var(--marigold);border-radius:2px;height:40%}
+.reel-slider{margin-top:14px;color:#fff;font-size:13px}
+.reel-slider .bar{height:6px;background:rgba(255,255,255,.15);border-radius:3px;margin-top:8px;position:relative}
+.reel-slider .bar::before{content:"";position:absolute;left:0;top:0;bottom:0;width:38%;background:var(--marigold);border-radius:3px}
+.reel-slider .bar::after{content:"";position:absolute;left:38%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:var(--shadow)}
+
+/* ============ copy options ============ */
+.copy-card .big{font-family:"Fraunces",serif;font-size:19px;color:var(--maroon);line-height:1.3}
+.copy-card .small{color:var(--muted);font-size:13.5px;margin-top:8px}
+
+/* ============ Picks summary bar ============ */
+.summary{position:fixed;right:20px;bottom:20px;background:#2E141C;color:#fff;border-radius:16px;padding:14px 18px;
+  box-shadow:var(--shadow-float);font-size:13px;max-width:280px;z-index:50}
+.summary b{color:var(--marigold);font-weight:600}
+.summary .row{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+.summary .row span:last-child{color:#fff;font-weight:600;text-align:right}
+.summary h4{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--marigold);margin-bottom:8px}
+@media(max-width:560px){.summary{left:20px;right:20px;max-width:none}}
+.note{background:color-mix(in srgb,var(--marigold) 12%,var(--card));border:1px solid var(--gold);border-radius:14px;
+  padding:14px 18px;font-size:13.5px;color:var(--maroon);margin-top:8px}
+
+/* ============ Theme switcher bar ============ */
+.themebar{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--cream) 82%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.themebar-inner{display:flex;align-items:center;gap:16px;padding:12px 24px;overflow-x:auto}
+.tb-label{font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;color:var(--marigold-deep);flex:0 0 auto}
+.tb-opts{display:flex;gap:10px;flex:0 0 auto}
+.tb-opt{display:flex;align-items:center;gap:9px;border:1.5px solid var(--border);background:var(--card);border-radius:999px;
+  padding:7px 14px 7px 8px;cursor:pointer;transition:all .18s;flex:0 0 auto}
+.tb-opt:hover{border-color:color-mix(in srgb,var(--marigold) 55%,var(--border))}
+.tb-opt[aria-pressed="true"]{border-color:var(--maroon);box-shadow:0 0 0 2px color-mix(in srgb,var(--maroon) 18%,transparent)}
+.tb-opt .dots{display:flex}
+.tb-opt .dots i{width:16px;height:16px;border-radius:50%;margin-left:-6px;border:1.5px solid var(--card)}
+.tb-opt .tn{font-size:13px;font-weight:600;color:var(--maroon);white-space:nowrap}
+.font-opts{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="kicker">The Wedding Issue · 2026 · Lookbook</div>
+  <h1 class="serif">Jeena<span class="dot">.</span></h1>
+  <p>A visual menu of options for the rebrand. Tap the ones you love in each section — your picks collect in the corner. Nothing here is final; this is just to choose together.</p>
+  <div class="divider"></div>
+</div>
+
+<div class="themebar">
+  <div class="wrap themebar-inner">
+    <span class="tb-label">Palette</span>
+    <div class="tb-opts" id="themeOpts"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- 1. WORDMARK -->
+  <section id="wordmark">
+    <div class="eyebrow"><span class="num">1</span> Wordmark</div>
+    <h2 class="section-title" style="font-size:26px">How “Jeena” is written</h2>
+    <p class="section-lead">Six treatments — all English only, no Devanagari. Same warm, editorial feel as the current mark; different levels of formality. The signature marigold dot carries through where it fits.</p>
+    <div class="grid g3">
+      <div class="pick" data-group="wordmark" data-value="A — Italic + dot">
+        <span class="check">✓</span>
+        <div class="wm wm-a"><div class="mark serif">Jeena<span class="dot">.</span></div></div>
+        <div class="lbl">A · Italic + dot</div>
+        <div class="cap">Today’s signature style, name swapped. Warmest, most keepsake.</div>
+      </div>
+      <div class="pick" data-group="wordmark" data-value="B — Rule + caps">
+        <span class="check">✓</span>
+        <div class="wm wm-b"><div class="mark serif">Jeena</div><div class="rule"></div><div class="sub">Nameeta &amp; Jeenendra</div></div>
+        <div class="lbl">B · Hairline + caps</div>
+        <div class="cap">Upright serif with a gold rule. More formal, invitation-like.</div>
+      </div>
+      <div class="pick" data-group="wordmark" data-value="C — Cormorant &amp;">
+        <span class="check">✓</span>
+        <div class="wm wm-c"><div class="mark">N <span class="amp">&amp;</span> J</div><div class="sub">Jeena</div></div>
+        <div class="lbl">C · Monogram-forward</div>
+        <div class="cap">Couple initials lead, “Jeena” as the name below. Romantic.</div>
+      </div>
+      <div class="pick" data-group="wordmark" data-value="D — Roundel">
+        <span class="check">✓</span>
+        <div class="wm wm-d"><div class="mono serif">J</div><div><div class="mark serif">Jeena</div><div class="sub">A new beginning</div></div></div>
+        <div class="lbl">D · Roundel + name</div>
+        <div class="cap">A little gold roundel monogram beside the name. Badge-like.</div>
+      </div>
+      <div class="pick" data-group="wordmark" data-value="E — Caps + est.">
+        <span class="check">✓</span>
+        <div class="wm"><div class="mark serif" style="font-weight:600;font-size:34px;letter-spacing:.18em;color:var(--maroon)">JEENA</div>
+          <div style="font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--marigold-deep);margin-top:8px;font-weight:600">Est. 2026 · Forever</div></div>
+        <div class="lbl">E · Caps + est.</div>
+        <div class="cap">All-caps serif, letterspaced. Timeless, monogram-plate feel.</div>
+      </div>
+      <div class="pick" data-group="wordmark" data-value="F — Lowercase italic">
+        <span class="check">✓</span>
+        <div class="wm"><div class="mark serif" style="font-style:italic;font-weight:500;font-size:44px;color:var(--maroon)">jeena<span style="color:var(--rose);font-style:normal">.</span></div></div>
+        <div class="lbl">F · Lowercase italic</div>
+        <div class="cap">Soft lowercase with a rose dot. Intimate, modern, understated.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. TAGLINE -->
+  <section id="tagline">
+    <div class="eyebrow"><span class="num">2</span> The line</div>
+    <h2 class="section-title" style="font-size:26px">Tagline — leaning into “Jeena = to live”</h2>
+    <p class="section-lead">“Jeena” means <em>to live</em>, so the tagline can quietly extend “our shaadi” into “our beginning.” Pick the voice you like.</p>
+    <div class="chips">
+      <button class="chip" data-group="tagline" data-value="where forever begins">where <span class="serif">forever</span> begins</button>
+      <button class="chip" data-group="tagline" data-value="the beginning of us">the <span class="serif">beginning</span> of us</button>
+      <button class="chip" data-group="tagline" data-value="our shaadi, our new beginning">our shaadi, our new beginning</button>
+      <button class="chip" data-group="tagline" data-value="to live, to love, to remember">to live · to love · to remember</button>
+      <button class="chip" data-group="tagline" data-value="two hearts, one beginning">two hearts, one <span class="serif">beginning</span></button>
+      <button class="chip" data-group="tagline" data-value="a lifetime starts here">a <span class="serif">lifetime</span> starts here</button>
+      <button class="chip" data-group="tagline" data-value="Nameeta &amp; Jeenendra">Nameeta &amp; Jeenendra</button>
+    </div>
+  </section>
+
+  <!-- 3. PALETTE -->
+  <section id="palette">
+    <div class="eyebrow"><span class="num">3</span> Palette</div>
+    <h2 class="section-title" style="font-size:26px">Compare full themes</h2>
+    <p class="section-lead">Use the <b>Palette</b> bar at the very top to switch the whole page between six directions. Loaded by default: <b>Rose Gold &amp; Wine · Dark</b> — a deep wine background with pale gold-rose hairline borders (the one you asked for). Also compare <b>Refined Marigold</b>, light <b>Rose Gold &amp; Wine</b>, <b>Emerald &amp; Gold</b>, <b>Blush &amp; Sage</b>, and <b>Midnight &amp; Gold</b>. Swatches, garland, hero card and accents all re-theme live. Then fine-tune the rose accent below.</p>
+    <div class="swatches" id="swatches"></div>
+    <div class="rose-opts" role="group" aria-label="Rose accent">
+      <div class="rose-opt" data-group="rose" data-value="#C97B84" data-soft="#EAD1CE"><div class="dot" style="background:#C97B84"></div><div class="t">Dusty rose</div></div>
+      <div class="rose-opt" data-group="rose" data-value="#B85C6A" data-soft="#E6C6C6"><div class="dot" style="background:#B85C6A"></div><div class="t">Deep rose</div></div>
+      <div class="rose-opt" data-group="rose" data-value="#C56A4E" data-soft="#EBCBBB"><div class="dot" style="background:#C56A4E"></div><div class="t">Terracotta</div></div>
+    </div>
+  </section>
+
+  <!-- LIVE PREVIEW -->
+  <section id="preview">
+    <div class="eyebrow"><span class="num">✦</span> In context</div>
+    <h2 class="section-title" style="font-size:26px">The home card, live</h2>
+    <p class="section-lead">Your wordmark + tagline + rose choice, applied to the real home hero so you can feel it together.</p>
+    <div class="invite">
+      <span class="pill">✦ Nameeta weds Jeenendra</span>
+      <svg class="garland" viewBox="0 0 320 26" aria-hidden="true">
+        <path d="M0 6 Q160 16 320 6" fill="none" stroke="var(--gold)" stroke-width="1.25" stroke-linecap="round" opacity=".9"/>
+        <g id="garland-g"></g>
+      </svg>
+      <div id="pv-mark" class="serif" style="font-style:italic;font-weight:600;font-size:38px;color:var(--maroon);margin-top:6px">Jeena<span style="color:var(--marigold-deep);font-style:normal">.</span></div>
+      <div id="pv-tag" style="font-family:'Fraunces',serif;font-style:italic;color:var(--rose);font-size:15px;margin-top:2px">where forever begins</div>
+      <h3>Every photo you’re in, <em>gathered</em> in one place.</h3>
+      <p>Take a quick selfie and we’ll find your moments from the celebration — ready to relive and keep.</p>
+      <button class="cta">✦ Find my photos</button>
+    </div>
+  </section>
+
+  <!-- 4. SELFIE TRAY -->
+  <section id="tray">
+    <div class="eyebrow"><span class="num">4</span> Selfie capture</div>
+    <h2 class="section-title" style="font-size:26px">Tap-to-open camera / gallery tray</h2>
+    <p class="section-lead">Right now the box only starts the live camera. New behaviour: tap anywhere on the box → a tidy action sheet slides up with <b>Take a selfie</b> or <b>Choose from gallery</b>. Try it 👇</p>
+    <div class="phone">
+      <div class="scrim" id="scrim"></div>
+      <div class="selfie-box" id="selfieBox">
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <div class="ic">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.5 4l1.5 2h3a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h3l1.5-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          </div>
+          <small>Tap to add a selfie so we can find your photos.</small>
+        </div>
+        <div class="tray" id="tray">
+          <button>
+            <span class="ti"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.5 4l1.5 2h3a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h3l1.5-2z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+            Take a selfie
+          </button>
+          <button>
+            <span class="ti"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 15l-5-5L5 19"/></svg></span>
+            Choose from gallery
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. UPLOAD COPY -->
+  <section id="copy">
+    <div class="eyebrow"><span class="num">5</span> Upload invitation</div>
+    <h2 class="section-title" style="font-size:26px">Replacing “Have photos on your phone from the day?”</h2>
+    <p class="section-lead">Warmer, more inviting copy for the “contribute your photos” prompt. Pick your favourite.</p>
+    <div class="grid g3">
+      <div class="pick copy-card" data-group="copy" data-value="You were there too">
+        <span class="check">✓</span>
+        <div class="big">You were there too.</div>
+        <div class="small">Add the shots you caught to everyone’s album — the candids only your phone has.</div>
+      </div>
+      <div class="pick copy-card" data-group="copy" data-value="Share your view">
+        <span class="check">✓</span>
+        <div class="big">Share your view of the day.</div>
+        <div class="small">Some of the best moments live on your camera roll. Add them so every guest can find themselves.</div>
+      </div>
+      <div class="pick copy-card" data-group="copy" data-value="Add to the story">
+        <span class="check">✓</span>
+        <div class="big">Add your photos to the story.</div>
+        <div class="small">Contribute the amazing shots you took — they get face-matched into everyone’s gallery too.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. INTRO ANIMATION -->
+  <section id="intro">
+    <div class="eyebrow"><span class="num">6</span> Cinematic intro</div>
+    <h2 class="section-title" style="font-size:26px">The magazine cover, reimagined</h2>
+    <p class="section-lead">A loading beat, a staggered spring reveal, and drifting ambiance. Pick the ambiance and hit replay. (Built on framer-motion in the real app — not Locomotive, which is for long scroll pages.)</p>
+    <div class="intro-controls">
+      <button class="mini-btn active" data-group="intro" data-value="Petals" data-mode="petals">🌼 Marigold petals</button>
+      <button class="mini-btn" data-group="intro" data-value="Petals + hearts" data-mode="both">💗 Petals + hearts</button>
+      <button class="mini-btn" data-group="intro" data-value="Golden bokeh" data-mode="bokeh">✨ Golden bokeh</button>
+      <button class="mini-btn" data-group="intro" data-value="Floating diyas" data-mode="diyas">🪔 Floating diyas</button>
+      <button class="mini-btn" data-group="intro" data-value="Falling sparkles" data-mode="sparkles">✦ Falling sparkles</button>
+      <button class="mini-btn" id="replay" style="margin-left:auto">↻ Replay</button>
+    </div>
+    <div class="stage" id="stage" style="margin-top:16px">
+      <div class="frame">
+        <div class="eyebrow2">The Wedding Issue · 2026</div>
+        <svg class="g3g" width="200" height="24" viewBox="0 0 320 26" aria-hidden="true">
+          <path d="M0 6 Q160 16 320 6" fill="none" stroke="var(--gold)" stroke-width="1.25" stroke-linecap="round"/>
+          <g id="stage-garland"></g>
+        </svg>
+        <h3 class="serif">Nameeta ki <span class="dot">Jeena</span></h3>
+        <div class="sub2">We’ve kept your moments safe — let me share them with you.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. COLLAGE -->
+  <section id="collage">
+    <div class="eyebrow"><span class="num">7</span> Collage 2.0</div>
+    <h2 class="section-title" style="font-size:26px">Instagram-ready, adjustable, more layouts</h2>
+    <p class="section-lead">Default aspect flips to <b>4:5</b> (IG portrait) with 1:1 and 9:16 options; every slot becomes pan &amp; pinch-zoom so faces never get cropped out. New layouts below — the previews resize with the ratio.</p>
+    <div class="ratio-toggle" role="group" aria-label="Aspect ratio">
+      <button data-ratio="1" data-group="ratio" data-value="1:1">1:1</button>
+      <button class="active" data-ratio="0.8" data-group="ratio" data-value="4:5">4:5</button>
+      <button data-ratio="0.5625" data-group="ratio" data-value="9:16">9:16</button>
+    </div>
+    <div class="layouts" id="layouts"></div>
+    <div class="note">💡 New in 2.0: drag-to-reposition &amp; zoom per photo · asymmetric “magazine” grids · heart-shape mosaic · story-format filmstrip · caption font styles · garland/phera stickers.</div>
+  </section>
+
+  <!-- 8. REEL -->
+  <section id="reel">
+    <div class="eyebrow"><span class="num">8</span> Reel maker <span style="color:var(--rose);border:1px solid var(--rose);border-radius:999px;padding:2px 8px;font-size:10px;letter-spacing:.1em">NEW</span></div>
+    <h2 class="section-title" style="font-size:26px">Photos → a 20–60s reel with music</h2>
+    <p class="section-lead">Select photos, reorder, pick a bundled song and trim it, choose length &amp; transitions — then the server renders an MP4 with ffmpeg. Here’s the editor concept:</p>
+    <div class="reel-mock">
+      <div class="reel-preview">
+        <div class="play">▶</div>
+        <div class="tag">#SaatPhere</div>
+      </div>
+      <div class="reel-strip">
+        <div class="th"></div><div class="th"></div><div class="th"></div><div class="th"></div><div class="th"></div>
+        <div class="th" style="background:rgba(255,255,255,.12);display:grid;place-items:center;color:#fff;opacity:1">+</div>
+      </div>
+      <div class="reel-row">
+        <span>🎵</span>
+        <div class="wave" id="wave"></div>
+        <span style="font-size:12px;opacity:.8">0:18</span>
+      </div>
+      <div class="reel-slider">
+        <div style="display:flex;justify-content:space-between"><span>Length</span><span style="color:var(--marigold);font-weight:600">22s</span></div>
+        <div class="bar"></div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:20px">You’ll drop in your song files; I’ll bundle them as a picker with trim. Render happens server-side (frames down-res’d to ~90% quality first, per your call) so it works on any phone.</div>
+  </section>
+
+</div>
+
+<!-- Picks summary -->
+<div class="summary" id="summary">
+  <h4>Your picks</h4>
+  <div class="row"><span>Palette</span><span id="s-theme">Refined Marigold</span></div>
+  <div class="row"><span>Wordmark</span><span id="s-wordmark">—</span></div>
+  <div class="row"><span>Tagline</span><span id="s-tagline">—</span></div>
+  <div class="row"><span>Rose</span><span id="s-rose">Dusty rose</span></div>
+  <div class="row"><span>Upload copy</span><span id="s-copy">—</span></div>
+  <div class="row"><span>Intro</span><span id="s-intro">Petals</span></div>
+  <div class="row"><span>Collage</span><span id="s-ratio">4:5</span></div>
+</div>
+
+<script>
+// ---------- Garland helper ----------
+function drawGarland(g, count){
+  const width=320, gap=width/(count-1);
+  for(let i=0;i<count;i++){
+    const x=i*gap, y=i%2===0?15:12, r=i%2===0?6.5:5.5;
+    const grp=document.createElementNS('http://www.w3.org/2000/svg','g');
+    grp.setAttribute('transform',`translate(${x} ${y})`);
+    grp.innerHTML=`<line x1="0" y1="${-y+8}" x2="0" y2="-1" stroke="var(--gold)" stroke-width=".75" opacity=".7"/>
+      <circle r="${r}" fill="var(--marigold)"/><circle r="${r*0.66}" fill="var(--marigold-deep)" opacity=".55"/><circle r="${r*0.3}" fill="var(--gold)"/>`;
+    g.appendChild(grp);
+  }
+}
+drawGarland(document.getElementById('garland-g'),9);
+drawGarland(document.getElementById('stage-garland'),9);
+
+// ---------- Generic single-select pick groups ----------
+function wireGroup(selector){
+  document.querySelectorAll(selector).forEach(el=>{
+    el.addEventListener('click',()=>{
+      const group=el.dataset.group;
+      document.querySelectorAll(`[data-group="${group}"]`).forEach(x=>x.setAttribute('aria-pressed','false'));
+      el.setAttribute('aria-pressed','true');
+      onPick(group, el);
+    });
+  });
+}
+const summary={theme:'Refined Marigold',wordmark:'—',tagline:'—',rose:'Dusty rose',copy:'—',intro:'Petals',ratio:'4:5'};
+function onPick(group, el){
+  const val=el.dataset.value;
+  if(group==='wordmark'){summary.wordmark=val.split(' ')[0]; updateMark(el);}
+  else if(group==='tagline'){summary.tagline='set'; document.getElementById('pv-tag').innerHTML=el.innerHTML;}
+  else if(group==='rose'){summary.rose=el.querySelector('.t').textContent; applyRose(el.dataset.value, el.dataset.soft);}
+  else if(group==='copy'){summary.copy=val;}
+  else if(group==='intro'){summary.intro=val; setIntroMode(el.dataset.mode); document.querySelectorAll('[data-group=intro]').forEach(b=>b.classList.remove('active')); el.classList.add('active');}
+  else if(group==='ratio'){summary.ratio=val; setRatio(parseFloat(el.dataset.ratio)); document.querySelectorAll('[data-group=ratio]').forEach(b=>b.classList.remove('active')); el.classList.add('active');}
+  renderSummary();
+}
+function renderSummary(){
+  for(const k in summary){ const n=document.getElementById('s-'+k); if(n) n.textContent=summary[k]; }
+}
+function updateMark(el){
+  // mirror the chosen wordmark into the live preview
+  const clone=el.querySelector('.wm').cloneNode(true);
+  const pv=document.getElementById('pv-mark');
+  pv.innerHTML=clone.innerHTML; pv.className=el.querySelector('.wm').className.replace('wm ','');
+  pv.style.marginTop='6px';
+}
+wireGroup('.pick');
+wireGroup('.chip');
+wireGroup('.rose-opt');
+
+// ---------- Rose live re-theme ----------
+function applyRose(hex, soft){
+  document.documentElement.style.setProperty('--rose',hex);
+  document.documentElement.style.setProperty('--rose-soft',soft);
+  const sw=document.getElementById('rose-swatch'); if(sw) sw.style.background=hex;
+  const h=document.getElementById('rose-hex'); if(h) h.textContent=hex;
+}
+document.querySelector('[data-group="rose"]').setAttribute('aria-pressed','true');
+
+// ---------- Selfie tray ----------
+const box=document.getElementById('selfieBox'), tray=document.getElementById('tray'), scrim=document.getElementById('scrim');
+box.addEventListener('click',(e)=>{ if(e.target.closest('.tray'))return; tray.classList.toggle('open'); scrim.classList.toggle('open'); });
+scrim.addEventListener('click',(e)=>{e.stopPropagation(); tray.classList.remove('open'); scrim.classList.remove('open');});
+
+// ---------- Intro animation ----------
+const stage=document.getElementById('stage');
+let introMode='petals';
+function setIntroMode(m){introMode=m;}
+function spawnAmbiance(){
+  const counts={petals:22,both:22,bokeh:18,diyas:14,sparkles:26};
+  const n=counts[introMode]||22;
+  for(let i=0;i<n;i++){
+    const x=Math.random()*100, dur=3+Math.random()*3, delay=Math.random()*1.4, size=8+Math.random()*10;
+    let el=document.createElement('div');
+    if(introMode==='both' && i%3===0){ el.className='heart'; el.textContent='♥'; }
+    else if(introMode==='diyas'){ el.className='heart'; el.textContent='🪔'; el.style.color=''; el.style.fontSize=(14+Math.random()*8)+'px'; }
+    else if(introMode==='sparkles'){ el.className='heart'; el.textContent='✦'; el.style.color='var(--gold)'; el.style.fontSize=(10+Math.random()*10)+'px'; }
+    else if(introMode==='bokeh'){ el.className='petal'; el.style.borderRadius='50%'; el.style.background='radial-gradient(circle,#F4D58A,var(--gold))'; el.style.filter='blur(1px)'; }
+    else { el.className='petal'; }
+    el.style.left=x+'%';
+    if(el.className==='petal'){ el.style.width=size+'px'; el.style.height=size+'px'; }
+    el.style.animation=`fall ${dur}s ${delay}s ease-in forwards`;
+    stage.appendChild(el);
+    setTimeout(()=>el.remove(),(dur+delay)*1000+200);
+  }
+}
+function playIntro(){
+  stage.classList.remove('replaying'); void stage.offsetWidth; stage.classList.add('replaying');
+  spawnAmbiance();
+}
+document.getElementById('replay').addEventListener('click',playIntro);
+setTimeout(playIntro,400);
+
+// ---------- Collage layouts ----------
+const LAYOUTS=[
+  {name:'2-up stack', cells:[[1,1,2,1],[1,2,2,1]], cols:2, rows:2},
+  {name:'Magazine', cells:[[1,1,1,2],[2,1,1,1],[2,2,1,1]], cols:2, rows:2},
+  {name:'Grid 4', cells:[[1,1,1,1],[2,1,1,1],[1,2,1,1],[2,2,1,1]], cols:2, rows:2},
+  {name:'Hero + 3', cells:[[1,1,2,1],[1,2,1,1],[2,2,1,1],[1,3,2,1]], cols:2, rows:3},
+  {name:'Story strip', cells:[[1,1,1,1],[1,2,1,1],[1,3,1,1]], cols:1, rows:3},
+  {name:'Sixer', cells:[[1,1,1,1],[2,1,1,1],[1,2,1,1],[2,2,1,1],[1,3,1,1],[2,3,1,1]], cols:2, rows:3},
+  {name:'Polaroid', cells:[[1,1,1,1]], cols:1, rows:1, polaroid:true},
+  {name:'Heart mosaic', cells:[[1,1,1,1],[2,1,1,1],[1,2,2,1]], cols:2, rows:2, heart:true},
+];
+let ratio=0.8; const BASE=150;
+function setRatio(r){ratio=r; renderLayouts();}
+function renderLayouts(){
+  const wrap=document.getElementById('layouts'); wrap.innerHTML='';
+  const w=BASE, h=Math.round(BASE/ratio>220?220:BASE/ratio), cw=Math.round(h*ratio);
+  LAYOUTS.forEach(L=>{
+    const card=document.createElement('div'); card.className='layout'; card.dataset.group='layout'; card.dataset.value=L.name;
+    const canvas=document.createElement('div'); canvas.className='canvas';
+    canvas.style.width=cw+'px'; canvas.style.height=h+'px';
+    canvas.style.gridTemplateColumns=`repeat(${L.cols},1fr)`; canvas.style.gridTemplateRows=`repeat(${L.rows},1fr)`;
+    if(L.polaroid){canvas.style.background='#fff'; canvas.style.padding='10px 10px 22px'; const c=document.createElement('div'); c.className='cell'; c.style.width='100%'; c.style.height='100%'; canvas.appendChild(c);}
+    else { L.cells.forEach(c=>{const d=document.createElement('div'); d.className='cell'; d.style.gridColumn=`${c[0]} / span ${c[2]}`; d.style.gridRow=`${c[1]} / span ${c[3]}`; if(L.heart)d.style.borderRadius='50% 50% 8px 8px'; canvas.appendChild(d);}); }
+    const name=document.createElement('div'); name.className='name'; name.textContent=L.name;
+    card.appendChild(canvas); card.appendChild(name); wrap.appendChild(card);
+    card.addEventListener('click',()=>{document.querySelectorAll('.layout').forEach(x=>x.style.borderColor=''); card.style.borderColor='var(--marigold-deep)';});
+  });
+}
+renderLayouts();
+
+// ---------- Reel waveform ----------
+const wave=document.getElementById('wave');
+for(let i=0;i<28;i++){const b=document.createElement('i'); b.style.height=(20+Math.random()*70)+'%'; if(i>10)b.style.opacity='.4'; wave.appendChild(b);}
+
+// ---------- Intro mode buttons (wire + replay on select) ----------
+document.querySelectorAll('[data-group="intro"]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('[data-group="intro"]').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    setIntroMode(el.dataset.mode);
+    summary.intro=el.dataset.value; renderSummary();
+    playIntro();
+  });
+});
+
+// ---------- Ratio toggle ----------
+document.querySelectorAll('[data-group="ratio"]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('[data-group="ratio"]').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    setRatio(parseFloat(el.dataset.ratio));
+    summary.ratio=el.dataset.value; renderSummary();
+  });
+});
+
+// ---------- Full-theme switcher ----------
+const THEMES={
+  'Refined Marigold':{dots:['#E8A33D','#4A1420','#C6A15B'],vars:{cream:'#FBF6EC',card:'#FEFBF4',marigold:'#E8A33D','marigold-deep':'#CC7A2E',gold:'#C6A15B',maroon:'#4A1420',ink:'#2A1016',muted:'#8A6A62',rose:'#C97B84','rose-soft':'#EAD1CE',henna:'#6B7A4A',border:'#E6D6C4'}},
+  'Rose Gold & Wine':{dots:['#C97B84','#5A1F2B','#C9A24B'],vars:{cream:'#FAF3EE',card:'#FFFAF6',marigold:'#D98A6E','marigold-deep':'#A85462',gold:'#C9A24B',maroon:'#5A1F2B',ink:'#3A1620',muted:'#98727A',rose:'#C97B84','rose-soft':'#EAD1CE',henna:'#8A8A6A',border:'#ECD9D4'}},
+  'Rose Gold & Wine · Dark':{dots:['#241019','#D98A93','#D6B25E'],vars:{cream:'#241019',card:'#331722',marigold:'#D98A6E','marigold-deep':'#A85462',gold:'#D6B25E',maroon:'#F4DEDA',ink:'#F1E4DF',muted:'#C29AA0',rose:'#D98A93','rose-soft':'#522530',henna:'#A9BBA0',border:'rgba(232,206,178,0.26)'}},
+  'Emerald & Gold':{dots:['#1E5245','#C9A24B','#6E2233'],vars:{cream:'#F7F3E8',card:'#FCFAF1',marigold:'#C9A24B','marigold-deep':'#1E5245',gold:'#C9A24B',maroon:'#22332B',ink:'#16261F',muted:'#6E7A70',rose:'#C48A5A','rose-soft':'#D9E0CE',henna:'#2F6B54',border:'#DED9C4'}},
+  'Blush & Sage':{dots:['#D08C8C','#4A2A2E','#8C9A6E'],vars:{cream:'#F6F4EF',card:'#FDFCF8',marigold:'#D9A38C','marigold-deep':'#B06E72',gold:'#C6A15B',maroon:'#4A2A2E',ink:'#2E2124',muted:'#8A7A76',rose:'#D08C8C','rose-soft':'#F0DCD8',henna:'#7C8A64',border:'#E6DED4'}},
+  'Midnight & Gold':{dots:['#E8A33D','#201216','#E4C578'],vars:{cream:'#201216',card:'#2A1720',marigold:'#E8A33D','marigold-deep':'#D98F32',gold:'#E4C578',maroon:'#F3E3D0',ink:'#F5E9DC',muted:'#C9A79A',rose:'#E39AA0','rose-soft':'#5A3A44',henna:'#A9BBA0',border:'rgba(255,255,255,0.14)'}},
+};
+const SW_LIST=[['Cream','cream'],['Marigold','marigold'],['Deep','marigold-deep'],['Gold','gold'],['Maroon','maroon'],['Rose','rose'],['Henna','henna']];
+function renderSwatches(t){
+  const el=document.getElementById('swatches'); if(!el)return;
+  el.innerHTML=SW_LIST.map(([name,key])=>{
+    const hex=t.vars[key];
+    const ids=key==='rose'?' id="rose-swatch"':'';
+    const hids=key==='rose'?' id="rose-hex"':'';
+    return `<div class="sw"><div class="chipc"${ids} style="background:${hex}"></div><div class="name">${name}</div><div class="hex"${hids}>${hex}</div></div>`;
+  }).join('');
+}
+function applyTheme(name){
+  const t=THEMES[name]; if(!t)return;
+  for(const k in t.vars){ document.documentElement.style.setProperty('--'+k,t.vars[k]); }
+  renderSwatches(t);
+  summary.theme=name; renderSummary();
+}
+const DEFAULT_THEME='Rose Gold & Wine · Dark';
+const themeOpts=document.getElementById('themeOpts');
+Object.keys(THEMES).forEach((name)=>{
+  const t=THEMES[name];
+  const b=document.createElement('button'); b.className='tb-opt'; b.setAttribute('aria-pressed', name===DEFAULT_THEME?'true':'false');
+  b.innerHTML=`<span class="dots">${t.dots.map(d=>`<i style="background:${d}"></i>`).join('')}</span><span class="tn">${name}</span>`;
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tb-opt').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true'); applyTheme(name);
+  });
+  themeOpts.appendChild(b);
+});
+applyTheme(DEFAULT_THEME);
+
+renderSummary();
+</script>
+</body>
+</html>
