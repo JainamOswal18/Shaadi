@@ -32,6 +32,33 @@ for (const [key, fallback] of Object.entries({
   if (!dotEnv[key]) dotEnv[key] = fallback;
 }
 
+// Route ALL test database access to a dedicated Neon test branch, never
+// production. When TEST_DATABASE_URL is set it overrides DATABASE_URL for the
+// entire test process, so BOTH the raw `admin` client (process.env.DATABASE_URL)
+// and @/lib/db bind to the test branch. Together with per-test schema isolation
+// and the guard in src/lib/db.ts, this makes it impossible for a test run to
+// mutate production. (See memory: shaadi-prod-wipe-incident — a test run once
+// deleted the live gallery and had to be restored via Neon PITR.)
+const prodDbUrl = dotEnv.DATABASE_URL?.trim();
+const testDbUrl = dotEnv.TEST_DATABASE_URL?.trim();
+if (testDbUrl) {
+  if (testDbUrl === prodDbUrl) {
+    throw new Error(
+      "[vitest] TEST_DATABASE_URL must point at a SEPARATE Neon branch, not the " +
+        "production DATABASE_URL. Refusing to run tests against production.",
+    );
+  }
+  dotEnv.DATABASE_URL = testDbUrl;
+} else {
+  // No dedicated test branch configured. The src/lib/db.ts guard still prevents
+  // a production wipe, but a separate branch is strongly recommended.
+  console.warn(
+    "\n\x1b[33m[vitest] TEST_DATABASE_URL is not set — integration tests will use " +
+      "DATABASE_URL. Set TEST_DATABASE_URL to a dedicated Neon test branch to fully " +
+      "isolate tests from production.\x1b[0m\n",
+  );
+}
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
