@@ -51,6 +51,7 @@ function ResultsInner() {
   const [zipping, setZipping] = useState(false);
   // Big albums exceed the single-ZIP cap; this opens the "download in parts" sheet.
   const [partsOpen, setPartsOpen] = useState(false);
+  const [preparingPart, setPreparingPart] = useState<number | null>(null);
   const [recents, setRecents] = useState<RememberedGuest[]>([]);
   // Collage/reel flow: `selecting` turns the grid into a multi-select shared
   // by both editors; `launchMode` remembers which one to open once the guest
@@ -191,6 +192,23 @@ function ResultsInner() {
 
   function handleSwitch(sessionId: string) {
     router.push(`/results?sid=${encodeURIComponent(sessionId)}`);
+  }
+
+  // A part is a native <a download> (so large ZIPs stream to disk instead of
+  // buffering in memory). The browser gives no "started" signal and the server
+  // takes a few seconds to build the ZIP, so we show our own spinner + toast for
+  // a short window until the browser's own download indicator takes over.
+  function onPartClick(index: number, total: number) {
+    setPreparingPart(index);
+    const id = `zip-part-${index}`;
+    toast.loading(`Preparing part ${index + 1} of ${total}…`, {
+      id,
+      description: "Your download will start in a moment.",
+    });
+    window.setTimeout(() => {
+      toast.dismiss(id);
+      setPreparingPart((cur) => (cur === index ? null : cur));
+    }, 9000);
   }
 
   const others = recents.filter((g) => g.sessionId !== sid);
@@ -393,25 +411,31 @@ function ResultsInner() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            {zipParts.map((part) => (
-              <a
-                key={part.index}
-                href={part.href}
-                download
-                data-testid={`download-part-${part.index + 1}`}
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "touch" }),
-                  "justify-between",
-                )}
-              >
-                <span>
-                  Part {part.index + 1} of {zipParts.length}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  photos {part.start + 1}–{part.end}
-                </span>
-              </a>
-            ))}
+            {zipParts.map((part) => {
+              const busy = preparingPart === part.index;
+              return (
+                <a
+                  key={part.index}
+                  href={part.href}
+                  download
+                  onClick={() => onPartClick(part.index, zipParts.length)}
+                  data-testid={`download-part-${part.index + 1}`}
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "touch" }),
+                    "justify-between",
+                    busy && "pointer-events-none opacity-70",
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    {busy && <Loader2 className="size-4 animate-spin" />}
+                    Part {part.index + 1} of {zipParts.length}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    photos {part.start + 1}–{part.end}
+                  </span>
+                </a>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>
