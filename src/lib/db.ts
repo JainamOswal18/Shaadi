@@ -110,32 +110,19 @@ export async function searchByEmbedding(
   limit: number,
 ): Promise<MatchResult[]> {
   const vec = `[${embedding.join(",")}]`;
-  const maxDistance = 1 - threshold; // cosine distance cutoff for `<=>`
-  // Known limit: the KNN window is capped at candidateK (<= 1000, the pgvector
-  // ef_search max). For a subject appearing in >1000 photos, matches beyond the
-  // top-`candidateK` nearest faces can fall outside this window and be missed.
-  // Acceptable for this event's scale; revisit (paginate/partition) if a single
-  // subject is expected in more than ~1000 photos.
-  const candidateK = Math.min(Math.max(limit * 2, 500), 1000); // <= pgvector ef_search max
-  return await sql.begin(async (tx) => {
-    // SET LOCAL scopes ef_search to this tx only (pooled connections stay clean).
-    await tx`select set_config('hnsw.ef_search', ${String(candidateK)}, true)`;
-    return await tx<MatchResult[]>`
-      with knn as (
-        select f.photo_id, (f.embedding <=> ${vec}::vector) as dist
-        from faces f
-        order by f.embedding <=> ${vec}::vector
-        limit ${candidateK}
-      )
-      select p.id as "photoId", p.thumb_key as "thumbKey", p.preview_key as "previewKey",
-             (1 - min(k.dist)) as similarity
-      from knn k
-      join photos p on p.id = k.photo_id and p.status = 'active'
-      where k.dist <= ${maxDistance}
-      group by p.id, p.thumb_key, p.preview_key
-      order by similarity desc
-      limit ${limit}`;
-  });
+  // Exact scan over all faces: COMPLETE (no HNSW candidate cap) and
+  // deterministic. At this gallery's scale (~17k faces) a warm scan is ~120ms,
+  // so subjects who appear in many photos (e.g. the couple) are never truncated
+  // the way a top-K/ef_search-capped index query would truncate them.
+  return await sql<MatchResult[]>`
+    select p.id as "photoId", p.thumb_key as "thumbKey", p.preview_key as "previewKey",
+           max(1 - (f.embedding <=> ${vec}::vector)) as similarity
+    from faces f
+    join photos p on p.id = f.photo_id and p.status = 'active'
+    group by p.id, p.thumb_key, p.preview_key
+    having max(1 - (f.embedding <=> ${vec}::vector)) >= ${threshold}
+    order by similarity desc
+    limit ${limit}`;
 }
 
 export interface InsertMediaInput {

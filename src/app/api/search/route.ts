@@ -11,7 +11,9 @@ import type { SearchResponse } from "@/lib/types";
 export const runtime = "nodejs";
 
 // Cap on how many candidate matches we return to the client for one selfie.
-const MATCH_LIMIT = 500;
+// No practical cap: a subject (e.g. the couple) can appear in most of the
+// gallery, so return everyone's full set. Bounded above by the gallery size.
+const MATCH_LIMIT = 5000;
 
 /**
  * Resolve the originating client IP. Behind Vercel/Cloudflare the real client is
