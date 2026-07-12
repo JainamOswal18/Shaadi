@@ -158,6 +158,9 @@ export default function Home() {
         <h1 className="mt-4 text-balance font-heading text-[2rem] leading-[1.1] font-semibold text-maroon sm:text-4xl">
           Every photo you&rsquo;re in, gathered in one place.
         </h1>
+        <p className="mt-2 font-heading text-base italic text-rose">
+          two hearts, one beginning
+        </p>
         <p className="mx-auto mt-3 max-w-sm text-pretty text-[15px] leading-relaxed text-muted-foreground">
           {greeting
             ? "Welcome back — your photos are right where you left them."
@@ -326,14 +329,16 @@ export default function Home() {
       )}
 
       <div className="mt-5 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card/60 px-5 py-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          Have photos on your phone from the day?
+        <p className="font-heading text-base text-maroon">Add your photos to the story.</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Contribute the amazing shots you took — they get face-matched into everyone&rsquo;s
+          gallery too.
         </p>
         <Link
           href="/upload"
-          className="inline-flex min-h-11 items-center gap-1.5 font-medium text-maroon underline-offset-4 hover:underline"
+          className="mt-1 inline-flex min-h-11 items-center gap-1.5 font-medium text-maroon underline-offset-4 hover:underline"
         >
-          <ImagePlus className="size-4 text-marigold-deep" /> Add them to the shared album
+          <ImagePlus className="size-4 text-marigold-deep" /> Add to the shared album
         </Link>
       </div>
 
