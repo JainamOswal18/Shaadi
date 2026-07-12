@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { canvasSizeFor, DEFAULT_RATIO, RATIOS, THEMES, LAYOUTS, layoutsForRatio, layoutById } from "@/lib/collage";
+import {
+  canvasSizeFor,
+  DEFAULT_RATIO,
+  RATIOS,
+  THEMES,
+  LAYOUTS,
+  layoutsForRatio,
+  layoutById,
+  clampSlotTransform,
+  DEFAULT_SLOT_TRANSFORM,
+  slotTransformToCss,
+  FONT_STYLES,
+  DEFAULT_STYLE,
+} from "@/lib/collage";
 
 describe("collage ratios", () => {
   it("exposes exactly 4:5, 1:1, 9:16 with 1080-wide canvases", () => {
@@ -75,5 +88,45 @@ describe("collage layouts", () => {
 
   it("falls back to quad for an unknown layout id", () => {
     expect(layoutById("nonexistent").id).toBe("quad");
+  });
+});
+
+describe("slot pan/zoom transform", () => {
+  it("defaults to centered, unzoomed", () => {
+    expect(DEFAULT_SLOT_TRANSFORM).toEqual({ scale: 1, offsetX: 0, offsetY: 0 });
+  });
+
+  it("clamps scale to [1, 3]", () => {
+    expect(clampSlotTransform({ scale: 0.2, offsetX: 0, offsetY: 0 }).scale).toBe(1);
+    expect(clampSlotTransform({ scale: 5, offsetX: 0, offsetY: 0 }).scale).toBe(3);
+    expect(clampSlotTransform({ scale: 2, offsetX: 0, offsetY: 0 }).scale).toBe(2);
+  });
+
+  it("clamps pan offsets to [-0.5, 0.5]", () => {
+    expect(clampSlotTransform({ scale: 2, offsetX: 1.2, offsetY: -9 })).toEqual({
+      scale: 2,
+      offsetX: 0.5,
+      offsetY: -0.5,
+    });
+  });
+
+  it("serializes to a CSS transform string", () => {
+    expect(slotTransformToCss({ scale: 1, offsetX: 0, offsetY: 0 })).toBe(
+      "scale(1) translate(0%, 0%)",
+    );
+    expect(slotTransformToCss({ scale: 1.4, offsetX: 0.12, offsetY: -0.08 })).toBe(
+      "scale(1.4) translate(12%, -8%)",
+    );
+  });
+});
+
+describe("caption font styles", () => {
+  it("offers 3 font styles including serif default", () => {
+    expect(FONT_STYLES.map((f) => f.id)).toEqual(["serif", "script", "sans-bold"]);
+  });
+
+  it("DEFAULT_STYLE uses the serif font and 4:5 ratio", () => {
+    expect(DEFAULT_STYLE.fontStyle).toBe("serif");
+    expect(DEFAULT_STYLE.ratioId).toBe("4:5");
   });
 });

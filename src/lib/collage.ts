@@ -4,6 +4,24 @@
  * and the rendered canvas stay in sync from one source of truth.
  */
 
+export type RatioId = "4:5" | "1:1" | "9:16";
+export type CanvasSize = { width: number; height: number };
+
+export const RATIOS: { id: RatioId; label: string; size: CanvasSize }[] = [
+  { id: "4:5", label: "Portrait 4:5", size: { width: 1080, height: 1350 } },
+  { id: "1:1", label: "Square", size: { width: 1080, height: 1080 } },
+  { id: "9:16", label: "Story 9:16", size: { width: 1080, height: 1920 } },
+];
+
+export const DEFAULT_RATIO: RatioId = "4:5";
+
+export function canvasSizeFor(ratioId: RatioId): CanvasSize {
+  return RATIOS.find((r) => r.id === ratioId)?.size ?? RATIOS[0].size;
+}
+
+/** Fixed export width shared by every ratio (height varies). */
+export const CANVAS_WIDTH = 1080;
+
 export type Cell = { col: number; row: number; colSpan: number; rowSpan: number };
 
 export type CollageLayout = {
@@ -219,10 +237,56 @@ export const MOTIFS: { id: CollageMotif; label: string }[] = [
   { id: "garland", label: "Garland" },
 ];
 
+export type SlotTransform = { scale: number; offsetX: number; offsetY: number };
+
+export const DEFAULT_SLOT_TRANSFORM: SlotTransform = { scale: 1, offsetX: 0, offsetY: 0 };
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+export function clampSlotTransform(t: SlotTransform): SlotTransform {
+  return {
+    scale: clamp(t.scale, 1, 3),
+    offsetX: clamp(t.offsetX, -0.5, 0.5),
+    offsetY: clamp(t.offsetY, -0.5, 0.5),
+  };
+}
+
+export function slotTransformToCss(t: SlotTransform): string {
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
+  return `scale(${t.scale}) translate(${pct(t.offsetX)}, ${pct(t.offsetY)})`;
+}
+
+export type CaptionFontStyle = "serif" | "script" | "sans-bold";
+
+export const FONT_STYLES: {
+  id: CaptionFontStyle;
+  label: string;
+  family: string;
+  weight: number;
+  italic?: boolean;
+}[] = [
+  { id: "serif", label: "Serif", family: "var(--font-fraunces), Georgia, serif", weight: 600 },
+  {
+    id: "script",
+    label: "Script",
+    family: "var(--font-fraunces), Georgia, serif",
+    weight: 500,
+    italic: true,
+  },
+  {
+    id: "sans-bold",
+    label: "Bold sans",
+    family: "var(--font-hanken), system-ui, sans-serif",
+    weight: 800,
+  },
+];
+
 export type CollageStyle = {
   layoutId: string;
   themeId: string;
   motif: CollageMotif;
+  ratioId: RatioId;
+  fontStyle: CaptionFontStyle;
   border: number;
   radius: number;
   caption: string;
@@ -258,26 +322,10 @@ export const DEFAULT_STYLE: CollageStyle = {
   layoutId: "quad",
   themeId: "wine",
   motif: "wash",
+  ratioId: DEFAULT_RATIO,
+  fontStyle: "serif",
   border: 6,
   radius: 14,
   caption: "Nameeta ki Shaadi",
   hashtag: "#SaatPhere",
 };
-
-export type RatioId = "4:5" | "1:1" | "9:16";
-export type CanvasSize = { width: number; height: number };
-
-export const RATIOS: { id: RatioId; label: string; size: CanvasSize }[] = [
-  { id: "4:5", label: "Portrait 4:5", size: { width: 1080, height: 1350 } },
-  { id: "1:1", label: "Square", size: { width: 1080, height: 1080 } },
-  { id: "9:16", label: "Story 9:16", size: { width: 1080, height: 1920 } },
-];
-
-export const DEFAULT_RATIO: RatioId = "4:5";
-
-export function canvasSizeFor(ratioId: RatioId): CanvasSize {
-  return RATIOS.find((r) => r.id === ratioId)?.size ?? RATIOS[0].size;
-}
-
-/** Fixed export width shared by every ratio (height varies). */
-export const CANVAS_WIDTH = 1080;
