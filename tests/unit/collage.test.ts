@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canvasSizeFor, DEFAULT_RATIO, RATIOS, THEMES } from "@/lib/collage";
+import { canvasSizeFor, DEFAULT_RATIO, RATIOS, THEMES, LAYOUTS, layoutsForRatio, layoutById } from "@/lib/collage";
 
 describe("collage ratios", () => {
   it("exposes exactly 4:5, 1:1, 9:16 with 1080-wide canvases", () => {
@@ -38,5 +38,42 @@ describe("collage themes", () => {
   it("keeps 5 themes with unique ids", () => {
     expect(THEMES).toHaveLength(5);
     expect(new Set(THEMES.map((t) => t.id)).size).toBe(5);
+  });
+});
+
+describe("collage layouts", () => {
+  it("includes the new magazine-style layouts alongside the existing ones", () => {
+    const ids = LAYOUTS.map((l) => l.id);
+    for (const id of [
+      "duo", "trio", "quad", "six", "nine", "mosaic", "polaroid", "filmstrip",
+      "hero-duo", "hero-trio", "two-up", "three-up", "magazine", "story-filmstrip", "heart-mosaic",
+    ]) {
+      expect(ids).toContain(id);
+    }
+  });
+
+  it("restricts story-filmstrip to 9:16 only", () => {
+    const l = LAYOUTS.find((x) => x.id === "story-filmstrip")!;
+    expect(l.ratios).toEqual(["9:16"]);
+    expect(layoutsForRatio("9:16").map((x) => x.id)).toContain("story-filmstrip");
+    expect(layoutsForRatio("4:5").map((x) => x.id)).not.toContain("story-filmstrip");
+    expect(layoutsForRatio("1:1").map((x) => x.id)).not.toContain("story-filmstrip");
+  });
+
+  it("makes layouts without an explicit ratios list available everywhere", () => {
+    const quad = LAYOUTS.find((x) => x.id === "quad")!;
+    expect(quad.ratios ?? []).toEqual([]);
+    for (const r of ["4:5", "1:1", "9:16"] as const) {
+      expect(layoutsForRatio(r).map((x) => x.id)).toContain("quad");
+    }
+  });
+
+  it("heart-mosaic holds 5 photos and magazine holds 5", () => {
+    expect(layoutById("heart-mosaic").capacity).toBe(5);
+    expect(layoutById("magazine").capacity).toBe(5);
+  });
+
+  it("falls back to quad for an unknown layout id", () => {
+    expect(layoutById("nonexistent").id).toBe("quad");
   });
 });

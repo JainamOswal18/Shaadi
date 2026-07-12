@@ -12,10 +12,12 @@ export type CollageLayout = {
   /** How many photos this layout holds. */
   capacity: number;
   /** "grid" layouts use `cols`/`rows`/`cells`; others render bespoke frames. */
-  kind: "grid" | "polaroid" | "filmstrip";
+  kind: "grid" | "polaroid" | "filmstrip" | "hero" | "heart";
   cols?: number;
   rows?: number;
   cells?: Cell[];
+  /** Ratios this layout is offered for; empty/omitted = all ratios. */
+  ratios?: RatioId[];
 };
 
 const g = (col: number, row: number, colSpan = 1, rowSpan = 1): Cell => ({
@@ -83,10 +85,73 @@ export const LAYOUTS: CollageLayout[] = [
   },
   { id: "polaroid", label: "Polaroid stack", kind: "polaroid", capacity: 3 },
   { id: "filmstrip", label: "Filmstrip", kind: "filmstrip", capacity: 4 },
+  {
+    id: "hero-duo",
+    label: "Hero + 1",
+    kind: "grid",
+    capacity: 2,
+    cols: 1,
+    rows: 3,
+    cells: [g(1, 1, 1, 2), g(1, 3)],
+  },
+  {
+    id: "hero-trio",
+    label: "Hero + 2",
+    kind: "grid",
+    capacity: 3,
+    cols: 2,
+    rows: 3,
+    cells: [g(1, 1, 2, 2), g(1, 3), g(2, 3)],
+  },
+  {
+    id: "two-up",
+    label: "2-up",
+    kind: "grid",
+    capacity: 2,
+    cols: 1,
+    rows: 2,
+    cells: [g(1, 1), g(1, 2)],
+  },
+  {
+    id: "three-up",
+    label: "3-up",
+    kind: "grid",
+    capacity: 3,
+    cols: 1,
+    rows: 3,
+    cells: [g(1, 1), g(1, 2), g(1, 3)],
+  },
+  {
+    id: "magazine",
+    label: "Magazine",
+    kind: "grid",
+    capacity: 5,
+    cols: 3,
+    rows: 4,
+    // Asymmetric editorial spread: tall hero left, two stacked upper-right, band along the bottom.
+    cells: [g(1, 1, 2, 3), g(3, 1), g(3, 2), g(1, 4), g(2, 4, 2, 1)],
+  },
+  {
+    id: "story-filmstrip",
+    label: "Story strip",
+    kind: "filmstrip",
+    capacity: 5,
+    ratios: ["9:16"],
+  },
+  {
+    id: "heart-mosaic",
+    label: "Heart",
+    kind: "heart",
+    capacity: 5,
+  },
 ];
 
+export function layoutsForRatio(ratioId: RatioId): CollageLayout[] {
+  return LAYOUTS.filter((l) => !l.ratios || l.ratios.includes(ratioId));
+}
+
 export function layoutById(id: string): CollageLayout {
-  return LAYOUTS.find((l) => l.id === id) ?? LAYOUTS[2];
+  return LAYOUTS.find((l) => l.id === id) ?? LAYOUTS.find((l) => l.id === "quad")!;
 }
 
 export type CollageTheme = {
