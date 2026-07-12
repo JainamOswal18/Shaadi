@@ -199,5 +199,20 @@ export const DEFAULT_STYLE: CollageStyle = {
   hashtag: "#SaatPhere",
 };
 
-/** Fixed export size — square, social-friendly, high-res at pixelRatio 2. */
-export const CANVAS_SIZE = 1080;
+export type RatioId = "4:5" | "1:1" | "9:16";
+export type CanvasSize = { width: number; height: number };
+
+export const RATIOS: { id: RatioId; label: string; size: CanvasSize }[] = [
+  { id: "4:5", label: "Portrait 4:5", size: { width: 1080, height: 1350 } },
+  { id: "1:1", label: "Square", size: { width: 1080, height: 1080 } },
+  { id: "9:16", label: "Story 9:16", size: { width: 1080, height: 1920 } },
+];
+
+export const DEFAULT_RATIO: RatioId = "4:5";
+
+export function canvasSizeFor(ratioId: RatioId): CanvasSize {
+  return RATIOS.find((r) => r.id === ratioId)?.size ?? RATIOS[0].size;
+}
+
+/** Fixed export width shared by every ratio (height varies). */
+export const CANVAS_WIDTH = 1080;
