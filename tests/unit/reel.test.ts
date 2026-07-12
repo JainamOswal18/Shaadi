@@ -120,6 +120,25 @@ describe("ReelSpecSchema", () => {
     expect(() => ReelSpecSchema.parse({ ...base, perPhoto: [1, 2, 3] })).toThrow();
   });
 
+  it("rejects an unknown song.id instead of silently producing a music-less reel", () => {
+    expect(() =>
+      ReelSpecSchema.parse({ ...base, song: { id: "not-a-real-song" } }),
+    ).toThrow();
+  });
+
+  it("accepts every id in the song catalog", () => {
+    for (const s of SONG_CATALOG) {
+      expect(() => ReelSpecSchema.parse({ ...base, song: { id: s.id } })).not.toThrow();
+    }
+  });
+
+  it("threads an optional guestName through, defaulting to undefined when omitted", () => {
+    expect(ReelSpecSchema.parse(base).guestName).toBeUndefined();
+    expect(ReelSpecSchema.parse({ ...base, guestName: "Priya" }).guestName).toBe("Priya");
+    // Client always sends the field; a blank guest name must not 400.
+    expect(() => ReelSpecSchema.parse({ ...base, guestName: "" })).not.toThrow();
+  });
+
   it("exposes the aspect and transition option lists", () => {
     expect(ASPECTS).toEqual(["4:5", "9:16"]);
     expect(TRANSITIONS).toEqual(["crossfade", "kenburns", "cut"]);

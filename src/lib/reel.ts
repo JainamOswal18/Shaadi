@@ -56,10 +56,20 @@ export const ReelSpecSchema = z
     /** Optional per-photo weights; when present must match photoIds length. */
     perPhoto: z.array(z.number().positive()).optional(),
     song: z.object({ id: z.string().min(1), startSec: z.number().min(0).default(0) }),
+    // Who made this reel (threaded from the ReelMaker's guestName prop) so the
+    // admin Reels tab can show an attribution. Optional and no min length: the
+    // client always sends this field but it may be an empty string (no guest
+    // name on record) — the route collapses a blank name to null rather than
+    // rejecting the request.
+    guestName: z.string().max(200).optional(),
   })
   .refine((s) => !s.perPhoto || s.perPhoto.length === s.photoIds.length, {
     message: "perPhoto length must match photoIds",
     path: ["perPhoto"],
+  })
+  .refine((s) => songById(s.song.id) !== undefined, {
+    message: "unknown song id",
+    path: ["song", "id"],
   });
 export type ReelSpec = z.infer<typeof ReelSpecSchema>;
 
