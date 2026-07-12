@@ -11,12 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { requestUploadUrls, putToR2, uploadComplete } from "@/lib/api";
 import {
-  CANVAS_SIZE,
+  RATIOS,
   DEFAULT_STYLE,
-  LAYOUTS,
   MOTIFS,
   PRESETS,
   THEMES,
+  canvasSizeFor,
+  layoutsForRatio,
   layoutById,
   themeById,
   type CollageStyle,
@@ -70,6 +71,7 @@ function CollageCanvas({
   photos: Photo[];
   style: CollageStyle;
 }) {
+  const size = canvasSizeFor(style.ratioId);
   const layout = layoutById(style.layoutId);
   const t = themeById(style.themeId);
   const theme: ResolvedTheme = {
@@ -196,8 +198,8 @@ function CollageCanvas({
     <div
       ref={nodeRef}
       style={{
-        width: CANVAS_SIZE,
-        height: CANVAS_SIZE,
+        width: size.width,
+        height: size.height,
         background: theme.bg,
         position: "relative",
         display: "flex",
@@ -292,20 +294,22 @@ export function CollageMaker({
     };
   }, [onClose]);
 
-  const scale = previewW / CANVAS_SIZE;
+  const size = canvasSizeFor(style.ratioId);
+  const scale = previewW / size.width;
 
   const render = useCallback(async (): Promise<Blob> => {
     const node = nodeRef.current;
     if (!node) throw new Error("Collage not ready");
+    const dims = canvasSizeFor(style.ratioId);
     const blob = await toBlob(node, {
       pixelRatio: 2,
       cacheBust: true,
-      width: CANVAS_SIZE,
-      height: CANVAS_SIZE,
+      width: dims.width,
+      height: dims.height,
     });
     if (!blob) throw new Error("Export failed");
     return blob;
-  }, []);
+  }, [style.ratioId]);
 
   const filename = useMemo(
     () => `shaadi-collage-${style.hashtag.replace(/[^a-z0-9]/gi, "") || "memory"}.png`,
@@ -423,14 +427,14 @@ export function CollageMaker({
             <div ref={previewWrapRef} className="mx-auto w-full" style={{ maxWidth: 420 }}>
               <div
                 className="relative overflow-hidden rounded-xl"
-                style={{ width: previewW, height: previewW }}
+                style={{ width: previewW, height: previewW * (size.height / size.width) }}
               >
                 <div
                   style={{
                     transform: `scale(${scale})`,
                     transformOrigin: "top left",
-                    width: CANVAS_SIZE,
-                    height: CANVAS_SIZE,
+                    width: size.width,
+                    height: size.height,
                   }}
                 >
                   <CollageCanvas nodeRef={nodeRef} photos={photos} style={style} />
@@ -438,7 +442,8 @@ export function CollageMaker({
               </div>
             </div>
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              {photos.length} photo{photos.length === 1 ? "" : "s"} selected · exports at 1080×1080
+              {photos.length} photo{photos.length === 1 ? "" : "s"} selected · exports at{" "}
+              {size.width}×{size.height}
             </p>
           </div>
 
@@ -476,11 +481,43 @@ export function CollageMaker({
             </div>
           </section>
 
+          {/* Aspect ratio */}
+          <section className="mt-6">
+            <p className="mb-2 text-sm font-medium text-foreground">Aspect ratio</p>
+            <div className="flex gap-2">
+              {RATIOS.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  aria-pressed={style.ratioId === r.id}
+                  onClick={() => {
+                    const available = layoutsForRatio(r.id);
+                    setStyle((s) => ({
+                      ...s,
+                      ratioId: r.id,
+                      layoutId: available.some((l) => l.id === s.layoutId)
+                        ? s.layoutId
+                        : available[0].id,
+                    }));
+                  }}
+                  className={cn(
+                    "min-h-11 flex-1 rounded-xl border px-2 py-2 text-sm font-medium transition-colors",
+                    style.ratioId === r.id
+                      ? "border-marigold-deep bg-accent text-maroon"
+                      : "border-border bg-card text-muted-foreground hover:border-marigold/60",
+                  )}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
           {/* Layout */}
           <section className="mt-6">
             <p className="mb-2 text-sm font-medium text-foreground">Layout</p>
             <div className="grid grid-cols-4 gap-2">
-              {LAYOUTS.map((l) => (
+              {layoutsForRatio(style.ratioId).map((l) => (
                 <button
                   key={l.id}
                   type="button"
