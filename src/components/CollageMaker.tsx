@@ -13,14 +13,18 @@ import { requestUploadUrls, putToR2, uploadComplete } from "@/lib/api";
 import {
   RATIOS,
   DEFAULT_STYLE,
+  DEFAULT_SLOT_TRANSFORM,
   MOTIFS,
   PRESETS,
   THEMES,
   canvasSizeFor,
+  clampSlotTransform,
   layoutsForRatio,
   layoutById,
+  slotTransformToCss,
   themeById,
   type CollageStyle,
+  type SlotTransform,
 } from "@/lib/collage";
 import { cn } from "@/lib/utils";
 
@@ -66,10 +70,20 @@ function CollageCanvas({
   nodeRef,
   photos,
   style,
+  transforms,
+  onSlotWheel,
+  onSlotPointerDown,
+  onSlotPointerMove,
+  onSlotPointerUp,
 }: {
   nodeRef: React.Ref<HTMLDivElement>;
   photos: Photo[];
   style: CollageStyle;
+  transforms: Record<number, SlotTransform>;
+  onSlotWheel: (i: number, e: React.WheelEvent) => void;
+  onSlotPointerDown: (i: number, e: React.PointerEvent) => void;
+  onSlotPointerMove: (e: React.PointerEvent) => void;
+  onSlotPointerUp: () => void;
 }) {
   const size = canvasSizeFor(style.ratioId);
   const layout = layoutById(style.layoutId);
@@ -85,17 +99,41 @@ function CollageCanvas({
     ? Array.from({ length: cap }, (_, i) => photos[i % photos.length])
     : [];
 
-  const img = (p: Photo, key: number) => (
+  const slotProps = (i: number) => ({
+    "data-testid": `collage-slot-${i}`,
+    onWheel: (e: React.WheelEvent) => onSlotWheel(i, e),
+    onPointerDown: (e: React.PointerEvent) => onSlotPointerDown(i, e),
+    onPointerMove: onSlotPointerMove,
+    onPointerUp: onSlotPointerUp,
+  });
+
+  const slotTransform = (i: number) => transforms[i] ?? DEFAULT_SLOT_TRANSFORM;
+
+  const img = (p: Photo, i: number) => (
     <div
-      key={key}
-      style={{ overflow: "hidden", borderRadius: style.radius, background: theme.frame }}
+      key={i}
+      {...slotProps(i)}
+      style={{
+        overflow: "hidden",
+        borderRadius: style.radius,
+        background: theme.frame,
+        touchAction: "none",
+      }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={p.previewUrl}
         alt=""
+        role="img"
         crossOrigin="anonymous"
-        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          display: "block",
+          transform: slotTransformToCss(slotTransform(i)),
+          transformOrigin: "center",
+        }}
       />
     </div>
   );
@@ -116,12 +154,14 @@ function CollageCanvas({
         {layout.cells!.map((c, i) => (
           <div
             key={i}
+            {...slotProps(i)}
             style={{
               gridColumn: `${c.col} / span ${c.colSpan}`,
               gridRow: `${c.row} / span ${c.rowSpan}`,
               overflow: "hidden",
               borderRadius: style.radius,
               background: theme.frame,
+              touchAction: "none",
             }}
           >
             {slots[i] && (
@@ -129,8 +169,16 @@ function CollageCanvas({
               <img
                 src={slots[i].previewUrl}
                 alt=""
+                role="img"
                 crossOrigin="anonymous"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                  transform: slotTransformToCss(slotTransform(i)),
+                  transformOrigin: "center",
+                }}
               />
             )}
           </div>
@@ -157,13 +205,30 @@ function CollageCanvas({
               boxShadow: "0 18px 40px -12px rgba(60,20,20,0.45)",
             }}
           >
-            <div style={{ overflow: "hidden", borderRadius: 2, aspectRatio: "1 / 1", background: theme.frame }}>
+            <div
+              {...slotProps(i)}
+              style={{
+                overflow: "hidden",
+                borderRadius: 2,
+                aspectRatio: "1 / 1",
+                background: theme.frame,
+                touchAction: "none",
+              }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={p.previewUrl}
                 alt=""
+                role="img"
                 crossOrigin="anonymous"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                  transform: slotTransformToCss(slotTransform(i)),
+                  transformOrigin: "center",
+                }}
               />
             </div>
           </div>
@@ -264,11 +329,54 @@ export function CollageMaker({
   const [style, setStyle] = useState<CollageStyle>(DEFAULT_STYLE);
   const [previewW, setPreviewW] = useState(320);
   const [busy, setBusy] = useState<null | "download" | "share" | "gallery">(null);
+  const [transforms, setTransforms] = useState<Record<number, SlotTransform>>({});
   const nodeRef = useRef<HTMLDivElement>(null);
   const previewWrapRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{
+    slot: number;
+    startX: number;
+    startY: number;
+    base: SlotTransform;
+  } | null>(null);
 
   const set = <K extends keyof CollageStyle>(key: K, value: CollageStyle[K]) =>
     setStyle((s) => ({ ...s, [key]: value }));
+
+  const setSlotTransform = (slot: number, next: SlotTransform) =>
+    setTransforms((prev) => ({ ...prev, [slot]: clampSlotTransform(next) }));
+
+  function onSlotWheel(slot: number, e: React.WheelEvent) {
+    e.preventDefault();
+    const cur = transforms[slot] ?? DEFAULT_SLOT_TRANSFORM;
+    const delta = e.deltaY < 0 ? 0.1 : -0.1;
+    setSlotTransform(slot, { ...cur, scale: cur.scale + delta });
+  }
+
+  function onSlotPointerDown(slot: number, e: React.PointerEvent) {
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragState.current = {
+      slot,
+      startX: e.clientX,
+      startY: e.clientY,
+      base: transforms[slot] ?? DEFAULT_SLOT_TRANSFORM,
+    };
+  }
+
+  function onSlotPointerMove(e: React.PointerEvent) {
+    const d = dragState.current;
+    if (!d) return;
+    const dx = (e.clientX - d.startX) / previewW;
+    const dy = (e.clientY - d.startY) / previewW;
+    setSlotTransform(d.slot, {
+      ...d.base,
+      offsetX: d.base.offsetX + dx,
+      offsetY: d.base.offsetY + dy,
+    });
+  }
+
+  function onSlotPointerUp() {
+    dragState.current = null;
+  }
 
   // Measure the preview column so the 1080px canvas scales to fit any width.
   useEffect(() => {
@@ -437,7 +545,16 @@ export function CollageMaker({
                     height: size.height,
                   }}
                 >
-                  <CollageCanvas nodeRef={nodeRef} photos={photos} style={style} />
+                  <CollageCanvas
+                    nodeRef={nodeRef}
+                    photos={photos}
+                    style={style}
+                    transforms={transforms}
+                    onSlotWheel={onSlotWheel}
+                    onSlotPointerDown={onSlotPointerDown}
+                    onSlotPointerMove={onSlotPointerMove}
+                    onSlotPointerUp={onSlotPointerUp}
+                  />
                 </div>
               </div>
             </div>
