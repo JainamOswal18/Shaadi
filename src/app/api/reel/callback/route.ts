@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { getReelJob, setReelJobStatus } from "@/lib/db";
 import { loadEnv } from "@/lib/env";
@@ -13,12 +14,20 @@ const CallbackSchema = z.object({
 });
 
 /** Mirrors embed-service's own auth convenience: if no EMBED_API_KEY is
- *  configured (local dev), skip the check; otherwise require an exact
- *  bearer match. */
+ *  configured (local dev), skip the check; otherwise require the bearer
+ *  token to match, compared in constant time so a byte-by-byte early-exit
+ *  string comparison can't leak the key length/prefix via response timing. */
 function authorized(req: Request): boolean {
   const key = loadEnv().EMBED_API_KEY;
   if (!key) return true;
-  return req.headers.get("authorization") === `Bearer ${key}`;
+  const header = req.headers.get("authorization") ?? "";
+  const expected = `Bearer ${key}`;
+  const a = Buffer.from(header);
+  const b = Buffer.from(expected);
+  // timingSafeEqual throws on mismatched lengths, so guard that first —
+  // this length check does leak length via timing, but not the key itself.
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 /**
