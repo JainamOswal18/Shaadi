@@ -266,6 +266,10 @@ export default function Home() {
                 Your selfie <span className="text-marigold-deep">*</span>
               </span>
               <SelfieCapture onChange={setSelfie} />
+              <p className="text-center text-xs leading-relaxed text-muted-foreground">
+                Face the camera, remove sunglasses, and use good light — it helps us
+                find more of your photos.
+              </p>
             </div>
 
             {passcodeRequired && (
