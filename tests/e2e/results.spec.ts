@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { pngFile } from "./_helpers";
+import { pngFile, seedIntroSeen } from "./_helpers";
 
 async function reachResults(page: import("@playwright/test").Page) {
+  await seedIntroSeen(page);
   await page.goto("/");
   await page.getByLabel(/your name/i).fill("Priya Sharma");
   await page.locator('input[type="file"][accept="image/*"]').setInputFiles(pngFile("selfie.png"));
