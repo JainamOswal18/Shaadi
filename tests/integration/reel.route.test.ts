@@ -30,7 +30,14 @@ let setReelJobStatus: typeof import("@/lib/db").setReelJobStatus;
 let updateSettings: typeof import("@/lib/db").updateSettings;
 let POST: typeof import("@/app/api/reel/route").POST;
 let GET: typeof import("@/app/api/reel/route").GET;
+let callbackPOST: typeof import("@/app/api/reel/callback/route").POST;
 let dispatchReel: ReturnType<typeof vi.fn>;
+
+// Set before vi.resetModules()/the first dynamic import below so `loadEnv()`
+// (module-level cached in src/lib/env.ts) picks it up for this file's whole
+// module registry — including both /api/reel routes and the callback route.
+const CALLBACK_BEARER = "test-callback-key";
+process.env.EMBED_API_KEY = CALLBACK_BEARER;
 
 // Throwaway admin client (default search_path) for schema create/drop.
 const admin = postgres(process.env.DATABASE_URL as string);
@@ -88,6 +95,7 @@ beforeAll(async () => {
 
   POST = (await import("@/app/api/reel/route")).POST;
   GET = (await import("@/app/api/reel/route")).GET;
+  callbackPOST = (await import("@/app/api/reel/callback/route")).POST;
 
   const p1 = await insertPhoto({
     source: "ingest",
@@ -211,5 +219,78 @@ describe("GET /api/reel (integration, isolated schema)", () => {
   it("returns 404 for an unknown jobId", async () => {
     const res = await GET(getReq(randomUUID()));
     expect(res.status).toBe(404);
+  });
+});
+
+function callbackReq(body: unknown, bearer?: string): Request {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (bearer !== undefined) headers.authorization = `Bearer ${bearer}`;
+  return new Request("http://localhost/api/reel/callback", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+}
+
+describe("POST /api/reel/callback (integration, isolated schema)", () => {
+  it("returns 401 when the bearer token is missing", async () => {
+    const res = await callbackPOST(
+      new Request("http://localhost/api/reel/callback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jobId: randomUUID(), status: "done", outputKey: "reels/x.mp4" }),
+      }),
+    );
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "unauthorized" });
+  });
+
+  it("returns 401 when the bearer token is wrong", async () => {
+    const res = await callbackPOST(
+      callbackReq({ jobId: randomUUID(), status: "done", outputKey: "reels/x.mp4" }, "wrong-key"),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 400 for a malformed body", async () => {
+    const res = await callbackPOST(callbackReq({ jobId: "not-a-uuid" }, CALLBACK_BEARER));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "invalid_request" });
+  });
+
+  it("returns 404 for an unknown jobId", async () => {
+    const res = await callbackPOST(
+      callbackReq({ jobId: randomUUID(), status: "done", outputKey: "reels/x.mp4" }, CALLBACK_BEARER),
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("a done callback with outputKey flips the job to done and stores the key", async () => {
+    const createRes = await POST(postReq(validSpec([photoId1])));
+    const { jobId } = (await createRes.json()) as { jobId: string };
+
+    const res = await callbackPOST(
+      callbackReq({ jobId, status: "done", outputKey: `reels/${jobId}.mp4` }, CALLBACK_BEARER),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+
+    const job = await getReelJob(jobId);
+    expect(job?.status).toBe("done");
+    expect(job?.output_key).toBe(`reels/${jobId}.mp4`);
+  });
+
+  it("an error callback stores the error", async () => {
+    const createRes = await POST(postReq(validSpec([photoId1])));
+    const { jobId } = (await createRes.json()) as { jobId: string };
+
+    const res = await callbackPOST(
+      callbackReq({ jobId, status: "error", error: "ffmpeg exited 1" }, CALLBACK_BEARER),
+    );
+    expect(res.status).toBe(200);
+
+    const job = await getReelJob(jobId);
+    expect(job?.status).toBe("error");
+    expect(job?.error).toBe("ffmpeg exited 1");
   });
 });
