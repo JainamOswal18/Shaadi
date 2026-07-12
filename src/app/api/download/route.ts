@@ -1,8 +1,9 @@
 import { getPhotoOriginal, getSettings, logDownload } from "@/lib/db";
-import { presignGet } from "@/lib/r2";
+import { compressForDownload } from "@/lib/previews";
+import { getObjectBuffer, presignGet } from "@/lib/r2";
 
-// Node runtime: presigning uses the AWS S3 client and the route reads from the
-// postgres driver, neither of which runs on the edge runtime.
+// Node runtime: sharp re-encoding, the AWS S3 client, and the postgres driver
+// all require Node — none run on the edge runtime.
 export const runtime = "nodejs";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -29,12 +30,14 @@ function clientIp(req: Request): string | null {
 }
 
 /**
- * GET /api/download?photoId= — download a single original photo.
+ * GET /api/download?photoId= — download a single photo.
  *
- * Resolves the photo's private original key, mints a short-lived presigned URL
- * with a forced attachment filename, and 302-redirects the browser to it so the
- * bytes stream straight from R2 (never through this function). Logs a `single`
- * download event for audit.
+ * Serves a re-encoded ("Balanced") copy of the original: full-quality-looking
+ * but much smaller. The original is fetched from private R2, compressed with
+ * sharp, and streamed back as an attachment JPEG. If the original can't be
+ * decoded (e.g. a HEIC this runtime's sharp can't read), we fall back to a
+ * presigned 302 redirect to the untouched original so the download never fails.
+ * Logs a `single` download event for audit either way.
  */
 export async function GET(req: Request): Promise<Response> {
   // Maintenance kill switch: refuse downloads.
@@ -52,13 +55,25 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({ error: "not_found" }, { status: 404 });
   }
 
-  // Preserve the original file's real extension in the forced download name.
-  const signed = await presignGet(photo.original_key, {
-    download: true,
-    filename: `${photoId}.${extOf(photo.original_key)}`,
-  });
-
   await logDownload({ kind: "single", photoId, ip: clientIp(req) });
 
-  return Response.redirect(signed, 302);
+  try {
+    const original = await getObjectBuffer(photo.original_key);
+    const compressed = await compressForDownload(original);
+    return new Response(compressed as unknown as BodyInit, {
+      headers: {
+        "Content-Type": "image/jpeg",
+        "Content-Disposition": `attachment; filename="${photoId}.jpg"`,
+      },
+    });
+  } catch (err) {
+    // Undecodable original (or a transient fetch failure): fall back to the
+    // untouched original via a presigned redirect rather than erroring.
+    console.error(`download: compression fell back to original for ${photoId}:`, err);
+    const signed = await presignGet(photo.original_key, {
+      download: true,
+      filename: `${photoId}.${extOf(photo.original_key)}`,
+    });
+    return Response.redirect(signed, 302);
+  }
 }

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { mockClient } from "aws-sdk-client-mock";
 import postgres from "postgres";
+import sharp from "sharp";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // This suite exercises the single + ZIP download routes end-to-end against an
@@ -37,6 +38,9 @@ const IP_HEADERS = { "x-forwarded-for": "7.7.7.7, 10.0.0.1" };
 // Throwaway admin client (default search_path) for schema create/drop.
 const admin = postgres(process.env.DATABASE_URL as string);
 
+// A real 4000×3000 JPEG so the routes exercise actual sharp re-encoding
+// (compressForDownload) rather than the undecodable-input fallback path.
+let realJpeg: Buffer;
 let photo1: { id: string; original_key: string };
 let photo2: { id: string; original_key: string };
 let sessionId: string;
@@ -92,6 +96,14 @@ beforeAll(async () => {
   downloadGET = (await import("@/app/api/download/route")).GET;
   zipGET = (await import("@/app/api/download-zip/route")).GET;
 
+  // A decodable original, larger than the download edge cap so re-encoding both
+  // downsizes and re-compresses it.
+  realJpeg = await sharp({
+    create: { width: 4000, height: 3000, channels: 3, background: { r: 120, g: 80, b: 200 } },
+  })
+    .jpeg()
+    .toBuffer();
+
   // Seed two active photos + a search session whose matched_ids reference them.
   const p1 = await insertPhoto({
     source: "ingest",
@@ -127,25 +139,47 @@ afterAll(async () => {
 
 beforeEach(() => {
   s3mock.reset();
-  // Every GetObjectCommand yields a fresh readable "JPEG" body.
+  // Every GetObjectCommand yields a fresh readable copy of a real JPEG.
   s3mock.on(GetObjectCommand).callsFake(() => ({
-    Body: Readable.from(Buffer.from("fake-jpeg-bytes")),
+    Body: Readable.from(Buffer.from(realJpeg)),
   }));
 });
 
 describe("download routes (integration, isolated schema)", () => {
-  it("GET /api/download?photoId= redirects 302 to a presigned original", async () => {
+  it("GET /api/download?photoId= streams a compressed JPEG of the original", async () => {
+    const req = new Request(`http://localhost/api/download?photoId=${photo1.id}`, {
+      headers: IP_HEADERS,
+    });
+    const res = await downloadGET(req);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/jpeg");
+    expect(res.headers.get("content-disposition")).toContain(`${photo1.id}.jpg`);
+
+    // Body is a valid JPEG, re-encoded and downsized to the 3072px edge cap.
+    const out = Buffer.from(await res.arrayBuffer());
+    const meta = await sharp(out).metadata();
+    expect(meta.format).toBe("jpeg");
+    expect(Math.max(meta.width ?? 0, meta.height ?? 0)).toBeLessThanOrEqual(3072);
+    expect(out.length).toBeLessThan(realJpeg.length); // smaller than the 4000×3000 original
+
+    const rows = await sql`select kind, photo_id from download_events where kind = 'single'`;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].photo_id).toBe(photo1.id);
+  });
+
+  it("GET /api/download falls back to a 302 presigned original when it can't decode", async () => {
+    // An undecodable original (not a real image) must not fail the download —
+    // the route falls back to a presigned redirect to the untouched file.
+    s3mock.reset();
+    s3mock.on(GetObjectCommand).callsFake(() => ({
+      Body: Readable.from(Buffer.from("not-an-image")),
+    }));
     const req = new Request(`http://localhost/api/download?photoId=${photo1.id}`, {
       headers: IP_HEADERS,
     });
     const res = await downloadGET(req);
     expect(res.status).toBe(302);
-    const location = res.headers.get("location") ?? "";
-    expect(location).toContain(photo1.original_key);
-
-    const rows = await sql`select kind, photo_id from download_events where kind = 'single'`;
-    expect(rows).toHaveLength(1);
-    expect(rows[0].photo_id).toBe(photo1.id);
+    expect(res.headers.get("location") ?? "").toContain(photo1.original_key);
   });
 
   it("GET /api/download for an unknown photo returns 404", async () => {

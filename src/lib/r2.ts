@@ -80,6 +80,19 @@ export async function getObjectStream(
   return res.Body as Readable;
 }
 
+/** Fully read an R2 object into a Buffer (needed for sharp re-encoding). */
+export async function getObjectBuffer(
+  key: string,
+  bucket: string = originalsBucket(),
+): Promise<Buffer> {
+  const stream = await getObjectStream(key, bucket);
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
 export async function deleteObject(
   key: string,
   bucket: string = originalsBucket(),

@@ -1,7 +1,8 @@
 import { Readable } from "node:stream";
 import { ZipArchive } from "archiver";
 import { getPhotosForDownload, getSearchSession, getSettings, logDownload } from "@/lib/db";
-import { getObjectStream } from "@/lib/r2";
+import { compressForDownload } from "@/lib/previews";
+import { getObjectBuffer } from "@/lib/r2";
 import { checkRateLimit } from "@/lib/ratelimit";
 
 // Node runtime: this route streams a ZIP via `archiver` over Node streams and
@@ -18,20 +19,20 @@ function extOf(key: string): string {
   return ext || "jpg";
 }
 
-// Fallback thresholds: above either bound we do not build the ZIP inline. The
-// archive streams (constant memory), so the real risk is the function's request
-// time limit being hit mid-download on a slow client — which would truncate the
-// ZIP. These bounds cover essentially every real guest album in one download;
-// only pathologically large sets fall back to the "download individually" hint.
-const MAX_ZIP_BYTES = 4 * 1024 * 1024 * 1024; // 4 GB
-const MAX_ZIP_FILES = 1000;
+// Each ZIP entry is now re-encoded with sharp (see compressForDownload), so a
+// request's cost is bounded by how many images it compresses, not just bytes.
+// We therefore cap a single (full) archive at MAX_ZIP_FILES images; larger
+// albums download as parts, each part compressing at most PART_MAX images —
+// keeping every request comfortably inside the function time limit. The byte
+// bound is a secondary guard for pathologically large originals.
+const MAX_ZIP_BYTES = 6 * 1024 * 1024 * 1024; // 6 GB
+const MAX_ZIP_FILES = 200;
 
-// "Download in parts": albums over the caps above are downloaded as fixed-size
-// slices instead. ZIP_PART_SIZE is the suggested slice the client renders links
-// for; PART_MAX is the hard clamp on an explicit `count` so one part can never
-// itself blow past a reasonable per-request size.
-const ZIP_PART_SIZE = 250;
-const PART_MAX = 300;
+// "Download in parts": albums over the cap download as fixed-size slices.
+// ZIP_PART_SIZE is the slice the client requests; PART_MAX clamps an explicit
+// `count` so one part can never compress more than a bounded batch.
+const ZIP_PART_SIZE = 200;
+const PART_MAX = 250;
 
 /** Parse a non-negative integer query param, or null when absent/invalid. */
 function intParam(v: string | null): number | null {
@@ -140,11 +141,20 @@ export async function GET(req: Request): Promise<Response> {
   // B8: a single missing/broken original must not 500 the whole ZIP. Fetch and
   // append each entry inside try/catch — skip-and-log a failed object, continue
   // with the rest — and count how many actually made it in.
+  //
+  // Each entry is re-encoded ("Balanced" compression) to shrink the archive. If
+  // an original can't be decoded (e.g. HEIC), we fall back to storing the raw
+  // original bytes with their real extension so the photo is never lost.
   let appended = 0;
   for (const photo of photos) {
     try {
-      const body = await getObjectStream(photo.original_key);
-      archive.append(body, { name: `${photo.id}.${extOf(photo.original_key)}` });
+      const original = await getObjectBuffer(photo.original_key);
+      try {
+        const compressed = await compressForDownload(original);
+        archive.append(compressed, { name: `${photo.id}.jpg` });
+      } catch {
+        archive.append(original, { name: `${photo.id}.${extOf(photo.original_key)}` });
+      }
       appended++;
     } catch (err) {
       console.error(`download-zip: skipping ${photo.id} (${photo.original_key}):`, err);

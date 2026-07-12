@@ -20,6 +20,32 @@ const MEDIUM_WEBP_QUALITY = 80;
 const POSTER_WIDTH = 640;
 const POSTER_QUALITY = 80;
 
+// Download compression ("Balanced"): downloads serve a re-encoded copy of the
+// original rather than the raw file — full-quality-looking but much smaller,
+// which also shrinks ZIP albums. Long edge capped at DOWNLOAD_EDGE; never
+// upscales a smaller original. mozjpeg squeezes extra bytes at the same quality.
+const DOWNLOAD_EDGE = 3072;
+const DOWNLOAD_QUALITY = 85;
+
+/**
+ * Re-encode an original image for download: EXIF-rotated, capped to
+ * {@link DOWNLOAD_EDGE} on the long edge, JPEG at {@link DOWNLOAD_QUALITY}.
+ * Throws if the input isn't a decodable image (e.g. a HEIC the runtime's sharp
+ * can't read) — callers fall back to serving the untouched original.
+ */
+export async function compressForDownload(input: Buffer): Promise<Buffer> {
+  return sharp(input)
+    .rotate()
+    .resize({
+      width: DOWNLOAD_EDGE,
+      height: DOWNLOAD_EDGE,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: DOWNLOAD_QUALITY, mozjpeg: true })
+    .toBuffer();
+}
+
 export interface PreviewSet {
   thumb: Buffer;
   mediumWebp: Buffer;

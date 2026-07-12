@@ -93,7 +93,7 @@ export function downloadZipUrl(sessionId: string, start?: number, count?: number
 }
 
 /** Photos per ZIP part in the "download in parts" fallback (client + server agree). */
-export const ZIP_PART_SIZE = 250;
+export const ZIP_PART_SIZE = 200;
 
 /**
  * Fetch a same-origin file endpoint and save the response. Used for the ZIP
