@@ -4,7 +4,7 @@ import { pngFile } from "./_helpers";
 test("upload: selecting 2 photos uploads them and decrements quota", async ({ page }) => {
   await page.goto("/upload");
 
-  await expect(page.getByRole("heading", { name: /share your memories/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /add your photos/i })).toBeVisible();
   await page.getByLabel(/your name/i).fill("Priya Sharma");
   // Starts at full quota.
   await expect(page.getByText("0 / 20")).toBeVisible();

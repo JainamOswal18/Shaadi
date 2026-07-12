@@ -31,11 +31,11 @@ export default function UploadPage() {
         </div>
         <Garland count={9} className="mt-1" />
         <h1 className="mt-1 font-heading text-2xl font-semibold text-maroon sm:text-3xl">
-          Share your memories
+          Add your photos &amp; videos
         </h1>
         <p className="max-w-md text-sm text-muted-foreground">
-          Add the photos and videos you captured. They&rsquo;ll join the couple&rsquo;s gallery so
-          every guest can find themselves.
+          Upload the photos and videos from your phone to everyone&rsquo;s shared album &mdash;
+          so every guest can find themselves in the celebration.
         </p>
       </header>
 
