@@ -78,9 +78,22 @@ export function downloadUrl(photoId: string) {
   return `/api/download?photoId=${encodeURIComponent(photoId)}`;
 }
 
-export function downloadZipUrl(sessionId: string) {
-  return `/api/download-zip?sessionId=${encodeURIComponent(sessionId)}`;
+/**
+ * URL for the album ZIP. With no range it zips the whole matched set (subject to
+ * the route's size cap). Pass `start`/`count` to zip one slice — used by the
+ * "download in parts" flow for albums too large to zip in one request.
+ */
+export function downloadZipUrl(sessionId: string, start?: number, count?: number) {
+  const params = new URLSearchParams({ sessionId });
+  if (start != null && count != null) {
+    params.set("start", String(start));
+    params.set("count", String(count));
+  }
+  return `/api/download-zip?${params.toString()}`;
 }
+
+/** Photos per ZIP part in the "download in parts" fallback (client + server agree). */
+export const ZIP_PART_SIZE = 250;
 
 /**
  * Fetch a same-origin file endpoint and save the response. Used for the ZIP

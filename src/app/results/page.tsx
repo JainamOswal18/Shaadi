@@ -14,7 +14,21 @@ import { CollageMaker } from "@/components/CollageMaker";
 import { AccountMenu } from "@/components/AccountMenu";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ApiError, downloadZipUrl, fetchSession, saveFromApi, sessionKey } from "@/lib/api";
+import {
+  ApiError,
+  downloadZipUrl,
+  fetchSession,
+  saveFromApi,
+  sessionKey,
+  ZIP_PART_SIZE,
+} from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   getRecentGuests,
   logout as logoutGuest,
@@ -33,6 +47,8 @@ function ResultsInner() {
   const [loading, setLoading] = useState(true);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [zipping, setZipping] = useState(false);
+  // Big albums exceed the single-ZIP cap; this opens the "download in parts" sheet.
+  const [partsOpen, setPartsOpen] = useState(false);
   const [recents, setRecents] = useState<RememberedGuest[]>([]);
   // Collage flow: `selecting` turns the grid into a multi-select; `collageOpen`
   // launches the editor over the chosen photos.
@@ -68,11 +84,8 @@ function ResultsInner() {
       // selections and rate-limited callers; saveFromApi surfaces those as a
       // typed ApiError with a machine-readable `code` instead of saving JSON.
       if (err instanceof ApiError && err.code === "prepare") {
-        toast("This album is too large to zip", {
-          description:
-            err.message ||
-            "Open any photo and use “Download original” to save them individually.",
-        });
+        // Too large for one ZIP — offer the part-by-part download instead.
+        setPartsOpen(true);
       } else if (err instanceof ApiError && err.code === "rate_limited") {
         toast.error("Too many downloads right now", {
           description: "Please wait a minute and try again.",
@@ -161,6 +174,25 @@ function ResultsInner() {
 
   const matches = data?.matches ?? [];
   const hasPhotos = matches.length > 0;
+
+  // Albums past the single-ZIP cap download as fixed-size slices. We surface the
+  // parts UI proactively when the photo count alone is over the limit (so the
+  // first tap isn't a wasted full attempt); a byte-triggered overflow at a lower
+  // count is still caught via the `prepare` signal in downloadAll().
+  const needsParts = matches.length > ZIP_PART_SIZE;
+  const zipParts =
+    sid && matches.length > 0
+      ? Array.from({ length: Math.ceil(matches.length / ZIP_PART_SIZE) }, (_, i) => {
+          const start = i * ZIP_PART_SIZE;
+          const end = Math.min(start + ZIP_PART_SIZE, matches.length);
+          return {
+            index: i,
+            start,
+            end,
+            href: downloadZipUrl(sid, start, ZIP_PART_SIZE),
+          };
+        })
+      : [];
   const selectedPhotos = matches.filter((m) => selected.has(m.photoId));
 
   return (
@@ -290,12 +322,12 @@ function ResultsInner() {
                   variant="marigold"
                   size="xl"
                   data-testid="download-all"
-                  onClick={downloadAll}
+                  onClick={needsParts ? () => setPartsOpen(true) : downloadAll}
                   disabled={zipping}
                   className="flex-1 sm:ml-auto sm:flex-none"
                 >
                   {zipping ? <Loader2 className="animate-spin" /> : <Download />}
-                  Download all (ZIP)
+                  {needsParts ? "Download all (in parts)" : "Download all (ZIP)"}
                 </Button>
               </>
             )}
@@ -311,6 +343,39 @@ function ResultsInner() {
           onClose={() => setOpenIndex(null)}
         />
       )}
+
+      <Dialog open={partsOpen} onOpenChange={setPartsOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Download in parts</DialogTitle>
+            <DialogDescription>
+              Your album has {matches.length} photos — too many to zip in one file. Tap
+              each part to save it (each is a separate ZIP).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            {zipParts.map((part) => (
+              <a
+                key={part.index}
+                href={part.href}
+                download
+                data-testid={`download-part-${part.index + 1}`}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "touch" }),
+                  "justify-between",
+                )}
+              >
+                <span>
+                  Part {part.index + 1} of {zipParts.length}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  photos {part.start + 1}–{part.end}
+                </span>
+              </a>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {collageOpen && (
         <CollageMaker

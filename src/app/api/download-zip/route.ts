@@ -26,6 +26,20 @@ function extOf(key: string): string {
 const MAX_ZIP_BYTES = 4 * 1024 * 1024 * 1024; // 4 GB
 const MAX_ZIP_FILES = 1000;
 
+// "Download in parts": albums over the caps above are downloaded as fixed-size
+// slices instead. ZIP_PART_SIZE is the suggested slice the client renders links
+// for; PART_MAX is the hard clamp on an explicit `count` so one part can never
+// itself blow past a reasonable per-request size.
+const ZIP_PART_SIZE = 250;
+const PART_MAX = 300;
+
+/** Parse a non-negative integer query param, or null when absent/invalid. */
+function intParam(v: string | null): number | null {
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
 /**
  * Resolve the originating client IP. Behind Vercel/Cloudflare the real client is
  * the first hop in `x-forwarded-for`; `x-real-ip` is the single-value fallback.
@@ -61,33 +75,59 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({ error: "rate_limited" }, { status: 429 });
   }
 
-  const sessionId = new URL(req.url).searchParams.get("sessionId");
+  const params = new URL(req.url).searchParams;
+  const sessionId = params.get("sessionId");
   if (!sessionId || !UUID_RE.test(sessionId)) {
     return Response.json({ error: "invalid_session_id" }, { status: 400 });
   }
+
+  // Optional range: when both are present this is a "part" request that zips a
+  // slice of the matched set. `count` is clamped so a single part stays bounded.
+  const start = intParam(params.get("start"));
+  const countRaw = intParam(params.get("count"));
+  const isPart = start != null && countRaw != null;
+  const count = countRaw != null ? Math.min(countRaw, PART_MAX) : null;
 
   const session = await getSearchSession(sessionId);
   if (!session || !session.matched_ids || session.matched_ids.length === 0) {
     return Response.json({ error: "not_found" }, { status: 404 });
   }
 
-  const photos = await getPhotosForDownload(session.matched_ids);
+  // For a part request, zip only the requested slice of matched ids.
+  const ids =
+    isPart && start != null && count != null
+      ? session.matched_ids.slice(start, start + count)
+      : session.matched_ids;
+
+  const photos = await getPhotosForDownload(ids);
   if (photos.length === 0) {
     return Response.json({ error: "not_found" }, { status: 404 });
   }
 
-  // Oversized sets fall back to the async prepare flow.
-  const totalBytes = photos.reduce((sum, p) => sum + (p.bytes ?? 0), 0);
-  if (totalBytes > MAX_ZIP_BYTES || photos.length > MAX_ZIP_FILES) {
-    return Response.json(
-      {
-        mode: "prepare",
-        message:
-          "This album is too large to zip in one go. Open any photo and use “Download original” to save them individually.",
-      },
-      { status: 200 },
-    );
+  // Full-album requests that exceed the caps fall back to the client's
+  // "download in parts" flow. Part requests are already bounded, so they skip
+  // this gate and stream directly.
+  if (!isPart) {
+    const totalBytes = photos.reduce((sum, p) => sum + (p.bytes ?? 0), 0);
+    if (totalBytes > MAX_ZIP_BYTES || photos.length > MAX_ZIP_FILES) {
+      return Response.json(
+        {
+          mode: "prepare",
+          total: photos.length,
+          partSize: ZIP_PART_SIZE,
+          message:
+            "This album is too large to zip in one go. Download it in smaller parts below.",
+        },
+        { status: 200 },
+      );
+    }
   }
+
+  // Distinct, human-readable filename per part so saved files don't collide.
+  const filename =
+    isPart && start != null
+      ? `shaadi-photos_${start + 1}-${start + photos.length}.zip`
+      : "shaadi-photos.zip";
 
   // Build the archive: append each original as an entry, then finalize. Errors
   // (e.g. a source stream failing mid-transfer) destroy the archive so the
@@ -120,7 +160,7 @@ export async function GET(req: Request): Promise<Response> {
   return new Response(Readable.toWeb(archive) as unknown as ReadableStream, {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": 'attachment; filename="shaadi-photos.zip"',
+      "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
 }
