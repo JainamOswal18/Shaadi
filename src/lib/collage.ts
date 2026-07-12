@@ -101,15 +101,15 @@ export type CollageTheme = {
 
 export const THEMES: CollageTheme[] = [
   {
-    id: "maroon",
-    label: "Maroon",
+    id: "wine",
+    label: "Wine",
     bg: "var(--maroon)",
     frame: "var(--gold)",
     ink: "var(--cream)",
-    accent: "var(--marigold)",
+    accent: "var(--rose)",
   },
   {
-    id: "cream",
+    id: "ivory",
     label: "Ivory",
     bg: "var(--cream)",
     frame: "var(--marigold-deep)",
@@ -117,11 +117,11 @@ export const THEMES: CollageTheme[] = [
     accent: "var(--marigold-deep)",
   },
   {
-    id: "marigold",
-    label: "Marigold",
-    bg: "var(--marigold-deep)",
+    id: "rose",
+    label: "Rose",
+    bg: "var(--rose)",
     frame: "var(--cream)",
-    ink: "var(--cream)",
+    ink: "var(--maroon)",
     accent: "var(--gold)",
   },
   {
@@ -130,12 +130,12 @@ export const THEMES: CollageTheme[] = [
     bg: "var(--gold)",
     frame: "var(--maroon)",
     ink: "var(--maroon)",
-    accent: "var(--maroon)",
+    accent: "var(--marigold-deep)",
   },
   {
-    id: "henna",
-    label: "Henna",
-    bg: "var(--henna)",
+    id: "blush",
+    label: "Blush",
+    bg: "var(--marigold-deep)",
     frame: "var(--cream)",
     ink: "var(--cream)",
     accent: "var(--gold)",
@@ -178,20 +178,20 @@ export type CollagePreset = {
  * everything editable afterwards.
  */
 export const PRESETS: CollagePreset[] = [
-  { hashtag: "#MyFamily", caption: "My people, all in one frame", layoutId: "quad", themeId: "maroon", motif: "garland" },
-  { hashtag: "#OurWedding", caption: "The day we said forever", layoutId: "mosaic", themeId: "marigold", motif: "wash" },
+  { hashtag: "#MyFamily", caption: "My people, all in one frame", layoutId: "quad", themeId: "wine", motif: "garland" },
+  { hashtag: "#OurWedding", caption: "The day we said forever", layoutId: "mosaic", themeId: "blush", motif: "wash" },
   { hashtag: "#BehenKiWedding", caption: "My sister's big day", layoutId: "polaroid", themeId: "gold", motif: "plain" },
-  { hashtag: "#CousinKiShaadi", caption: "Cousin crew, wedding mode", layoutId: "six", themeId: "henna", motif: "wash" },
-  { hashtag: "#BhaiBehen", caption: "Bhai-behen forever", layoutId: "duo", themeId: "maroon", motif: "garland" },
-  { hashtag: "#Cousins", caption: "The whole cousin gang", layoutId: "filmstrip", themeId: "marigold", motif: "plain" },
+  { hashtag: "#CousinKiShaadi", caption: "Cousin crew, wedding mode", layoutId: "six", themeId: "rose", motif: "wash" },
+  { hashtag: "#BhaiBehen", caption: "Bhai-behen forever", layoutId: "duo", themeId: "wine", motif: "garland" },
+  { hashtag: "#Cousins", caption: "The whole cousin gang", layoutId: "filmstrip", themeId: "blush", motif: "plain" },
   { hashtag: "#ShubhVivah", caption: "Shubh Vivah", layoutId: "mosaic", themeId: "gold", motif: "garland" },
-  { hashtag: "#SaatPhere", caption: "Saat phere, one lifetime", layoutId: "six", themeId: "maroon", motif: "wash" },
-  { hashtag: "#JaiJinendra", caption: "Jai Jinendra", layoutId: "nine", themeId: "cream", motif: "plain" },
+  { hashtag: "#SaatPhere", caption: "Saat phere, one lifetime", layoutId: "six", themeId: "wine", motif: "wash" },
+  { hashtag: "#JaiJinendra", caption: "Jai Jinendra", layoutId: "nine", themeId: "ivory", motif: "plain" },
 ];
 
 export const DEFAULT_STYLE: CollageStyle = {
   layoutId: "quad",
-  themeId: "maroon",
+  themeId: "wine",
   motif: "wash",
   border: 6,
   radius: 14,
